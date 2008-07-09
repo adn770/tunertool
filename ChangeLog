@@ -1,4 +1,10 @@
-2008-07-09  Josep Torra,  <j.torra@telefonica.net>
+2008-07-09  Josep Torra  <j.torra@telefonica.net>
+
+	* gst-autogen.sh:
+	* gst-autogen.sh (added):
+	Added missing file in previous commit.
+
+2008-07-09  Josep Torra  <j.torra@telefonica.net>
 
 	* AUTHORS:
 	* COPYING:
