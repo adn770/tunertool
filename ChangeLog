@@ -1,0 +1,80 @@
+2008-07-09  Josep Torra,  <j.torra@telefonica.net>
+
+	* AUTHORS:
+	* COPYING:
+	* INSTALL:
+	* Makefile.am:
+	* NEWS:
+	* README:
+	* autogen.sh:
+	* configure.ac:
+	* debian/Makefile.am:
+	* debian/changelog:
+	* debian/control:
+	* debian/copyright:
+	* debian/files:
+	* debian/postinst:
+	* debian/rules:
+	* debian/substvars:
+	* debian/tuner.links:
+	* m4/Makefile.am:
+	* m4/as-compiler-flag.m4:
+	* m4/as-version.m4:
+	* src/Makefile.am:
+	* src/_kiss_fft_guts.h:
+	* src/demo-audiotest.c:
+	* src/demo-tuner.c:
+	* src/gstpitch.c:
+	* src/gstpitch.h:
+	* src/gsttonesrc.c:
+	* src/gsttonesrc.h:
+	* src/kiss_fft.c:
+	* src/kiss_fft.h:
+	* src/tuner.c:
+	* src/tuner26.png:
+	* src/tuner40.png:
+	* src/tuner64.png:
+	* tuner.desktop:
+	* debian/rules (svn:executable):
+	* src/tuner64.png (svn:mime-type):
+	* src/tuner26.png (svn:mime-type):
+	* src/tuner40.png (svn:mime-type):
+	* autogen.sh (svn:executable):
+	* m4/as-compiler-flag.m4 (added):
+	* m4/as-version.m4 (added):
+	* m4/Makefile.am (added):
+	* debian/control (added):
+	* debian/files (added):
+	* debian/postinst (added):
+	* debian/changelog (added):
+	* debian/copyright (added):
+	* debian/Makefile.am (added):
+	* debian/rules (added):
+	* debian/tuner.links (added):
+	* debian/substvars (added):
+	* configure.ac (added):
+	* AUTHORS (added):
+	* tuner.desktop (added):
+	* INSTALL (added):
+	* src/_kiss_fft_guts.h (added):
+	* src/demo-tuner.c (added):
+	* src/gsttonesrc.h (added):
+	* src/demo-audiotest.c (added):
+	* src/tuner40.png (added):
+	* src/gstpitch.c (added):
+	* src/tuner26.png (added):
+	* src/kiss_fft.c (added):
+	* src/Makefile.am (added):
+	* src/tuner64.png (added):
+	* src/gstpitch.h (added):
+	* src/gsttonesrc.c (added):
+	* src/kiss_fft.h (added):
+	* src/tuner.c (added):
+	* ChangeLog (added):
+	* COPYING (added):
+	* Makefile.am (added):
+	* autogen.sh (added):
+	* NEWS (added):
+	* README (added):
+
+	Initial import to garage svn.

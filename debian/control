@@ -1,0 +1,21 @@
+Source: tuner
+Section: user/extra
+Priority: optional
+Maintainer: Josep Torra <jtorra@uoc.edu>
+Build-Depends: debhelper (>= 4.0.0), libgtk2.0-dev, libosso-dev (>= 1)
+Standards-Version: 3.6.0
+
+Package: tuner
+Architecture: any
+Pre-Depends: maemo-select-menu-location
+Depends: ${shlibs:Depends}
+Description: Tuner is a helper tool for tuning instruments.
+XB-Maemo-Icon-26:
+  iVBORw0KGgoAAAANSUhEUgAAABoAAAAaBAMAAABbZFH9AAAAMFBMVEUAAACA
+  AAAAgACAgAAAAICAAIAAgIDAwMCAgID/AAAA/wD//wAAAP//AP8A//////9P
+  EyZJAAAAAWJLR0QAiAUdSAAAAAlwSFlzAAALEwAACxMBAJqcGAAAAAd0SU1F
+  B9YHFAYKBwXuSNEAAACPSURBVBjTVY8xDsNQCEO9haGSr5rxj2w/W6+UA/Qw
+  bMlQiZI0kB+2J4xt4G5eA3fhg3Qka0wxjN4VSaGDFFknZa47mWnKpFhu0DsB
+  h20lCNA1KcqstjAJr9UnTSLg+3kZBIYunP8JX7o0uXb2YWT2Uh62rb8vlxjD
+  2RX16ZFxkzUM5NPCgcR1pG0keyjD4webUwgZdzW9EgAAAABJRU5ErkJggg==
+

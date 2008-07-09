@@ -1,0 +1,28 @@
+tuner (0.0.4) unstable; urgency=low
+
+  * added calibration and some code clean up. Patch provided by Jari Tenhunen.
+  * some more clean up.
+  * kissfft gstreamer element renamed.
+  * added a replacement for audiotestsrc, now dependency is removed. 
+
+ -- Josep Torra <jtorra@uoc.edu>  Fri,  27 Jun 2008 07:00:00 +0100
+
+tuner (0.0.3) unstable; urgency=low
+
+  * make it compile in Chinook.
+  * added some libtool stuff.
+  * convert the kissfft plugin to static.
+
+ -- Josep Torra <jtorra@uoc.edu>  Fri,  05 Jan 2008 10:17:00 +0100
+
+tuner (0.0.2) unstable; urgency=low
+
+  * piano keyboard added.
+
+ -- Josep Torra <jtorra@uoc.edu>  Tue,  02 Aug 2006 18:32:00 +0100
+
+tuner (0.0.1) unstable; urgency=low
+
+  * first release for maemo tuner tool.
+
+ -- Josep Torra <jtorra@uoc.edu>  Tue,  01 Aug 2006 20:00:00 +0100

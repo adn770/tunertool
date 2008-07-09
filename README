@@ -1,0 +1,13 @@
+Tuner is a simple tool to help tuning instruments.
+
+It's based on gstreamer and uses kissfft to perform a FFT on the signal
+captured on the microphone, extract the fundamental frequency and
+correlate it with a table that associate frequencies and musical
+tones.
+
+It was primarilly written as a self introductory project on gstreamer.
+
+Enjoy with this in your tablet :)
+
+Josep Torra <j.torra@telefonica.net>
+
