@@ -1,3 +1,8 @@
+2008-07-21  Josep Torra <j.torra@telefonica.net>
+
+	* src/gstpitch.c:
+	Fixes a memory leak spoted by Jari Tenhunen.
+
 2008-07-09  Josep Torra  <j.torra@telefonica.net>
 
 	* gst-autogen.sh:

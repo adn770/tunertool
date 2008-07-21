@@ -331,16 +331,16 @@ gst_pitch_transform_ip (GstBaseTransform * trans, GstBuffer * in)
   while (gst_adapter_available (filter->adapter) > wanted) {
 
     GST_DEBUG ("  adapter loop");
-    samples = (gint16 *) gst_adapter_take (filter->adapter, wanted);
+    samples = (gint16 *) gst_adapter_peek (filter->adapter, wanted);
 
     for (i = 0, j = 0; i < filter->nfft; i++) {
       for (k = 0, acc = 0; k < filter->channels; k++)
         acc += samples[j++];
       filter->signal[i].r = (kiss_fft_scalar) (acc / filter->channels);
     }
+    gst_adapter_flush (filter->adapter, wanted);
 
     GST_DEBUG ("  fft");
-
     kiss_fft (filter->fft_cfg, filter->signal, filter->spectrum);
 
     GST_DEBUG ("  send message? %d", filter->num_frames);
