@@ -1,3 +1,10 @@
+2008-07-28  Jari Tenhunen  <jari.tenhunen@iki.fi>
+
+	* debian/rules:
+	Made package compile also on x86.
+	* debian/control:
+	Added missing build-dependencies.
+
 2008-07-21  Josep Torra <j.torra@telefonica.net>
 
 	* src/gstpitch.c:
