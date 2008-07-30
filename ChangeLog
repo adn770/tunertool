@@ -1,3 +1,17 @@
+2008-07-30  Josep Torra   <j.torra@telefonica.net>
+
+	* src/gstpitch.c: (gst_pitch_class_init), (gst_pitch_init),
+	(gst_pitch_set_property), (gst_pitch_get_property),
+	(gst_pitch_set_caps), (gst_pitch_start), (gst_pitch_message_new),
+	(gst_pitch_transform_ip):
+	* src/gstpitch.h:
+	* src/tuner.c: (main):
+	Simplified the code of the element and made it more oriented to
+	8 khz / mono sampling.
+	Implemented slidding window of 1 second with a half second
+	period.
+	Emmit fundamental frequency message each half second. 
+
 2008-07-28  Jari Tenhunen  <jari.tenhunen@iki.fi>
 
 	* debian/rules:

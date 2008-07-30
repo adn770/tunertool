@@ -29,6 +29,9 @@
 GST_DEBUG_CATEGORY_STATIC (gst_pitch_debug);
 #define GST_CAT_DEFAULT gst_pitch_debug
 
+#define RATE    8000
+#define WANTED  RATE * 2
+
 /* Filter signals and args */
 enum
 {
@@ -44,8 +47,8 @@ static GstStaticPadTemplate sink_template = GST_STATIC_PAD_TEMPLATE ("sink",
     GST_PAD_SINK,
     GST_PAD_ALWAYS,
     GST_STATIC_CAPS ("audio/x-raw-int, "
-        "rate = (int) [ 1, MAX ], "
-        "channels = (int) [1, MAX], "
+        "rate = (int) 8000, "
+        "channels = (int) 1, "
         "endianness = (int) BYTE_ORDER, "
         "width = (int) 16, " "depth = (int) 16, " "signed = (boolean) true")
     );
@@ -120,11 +123,6 @@ gst_pitch_class_init (GstPitchClass * klass)
           "Post a fundamental frequency message for each passed interval",
           TRUE, G_PARAM_READWRITE));
 
-  g_object_class_install_property (gobject_class, PROP_SIGNAL_INTERVAL,
-      g_param_spec_uint64 ("interval", "Interval",
-          "Interval of time between message posts (in nanoseconds)",
-          1, G_MAXUINT64, GST_SECOND / 10, G_PARAM_READWRITE));
-
   g_object_class_install_property (gobject_class, PROP_SIGNAL_MINFREQ,
       g_param_spec_int ("minfreq", "MinFreq",
           "Initial scan frequency, default 30 Hz",
@@ -135,10 +133,6 @@ gst_pitch_class_init (GstPitchClass * klass)
           "Final scan frequency, default 1500 Hz",
           1, G_MAXINT, 1500, G_PARAM_READWRITE));
 
-  g_object_class_install_property (gobject_class, PROP_NFFT,
-      g_param_spec_int ("nfft", "NFFT",
-          "Number of samples taken for FFT",
-          1, G_MAXINT, 1024, G_PARAM_READWRITE));
 
   GST_BASE_TRANSFORM_CLASS (klass)->transform_ip =
       GST_DEBUG_FUNCPTR (gst_pitch_transform_ip);
@@ -151,15 +145,7 @@ gst_pitch_init (GstPitch * filter, GstPitchClass * klass)
 
   filter->minfreq = 30;
   filter->maxfreq = 1500;
-  filter->nfft = 1024;
   filter->message = TRUE;
-  filter->interval = GST_SECOND / 10;
-
-  filter->fft_cfg = kiss_fft_alloc (filter->nfft, 0, NULL, NULL);
-  filter->signal =
-      (kiss_fft_cpx *) g_malloc (filter->nfft * sizeof (kiss_fft_cpx));
-  filter->spectrum =
-      (kiss_fft_cpx *) g_malloc (filter->nfft * sizeof (kiss_fft_cpx));
 }
 
 static void
@@ -191,27 +177,12 @@ gst_pitch_set_property (GObject * object, guint prop_id,
     case PROP_SIGNAL_FFREQ:
       filter->message = g_value_get_boolean (value);
       break;
-    case PROP_SIGNAL_INTERVAL:
-      filter->interval = gst_guint64_to_gdouble (g_value_get_uint64 (value));
-      break;
     case PROP_SIGNAL_MINFREQ:
       filter->minfreq = g_value_get_int (value);
       break;
     case PROP_SIGNAL_MAXFREQ:
       filter->maxfreq = g_value_get_int (value);
       break;
-    case PROP_NFFT:
-      filter->nfft = g_value_get_int (value);
-      g_free (filter->fft_cfg);
-      g_free (filter->signal);
-      g_free (filter->spectrum);
-      filter->fft_cfg = kiss_fft_alloc (filter->nfft, 0, NULL, NULL);
-      filter->signal =
-          (kiss_fft_cpx *) g_malloc (filter->nfft * sizeof (kiss_fft_cpx));
-      filter->spectrum =
-          (kiss_fft_cpx *) g_malloc (filter->nfft * sizeof (kiss_fft_cpx));
-      break;
-
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -228,19 +199,12 @@ gst_pitch_get_property (GObject * object, guint prop_id,
     case PROP_SIGNAL_FFREQ:
       g_value_set_boolean (value, filter->message);
       break;
-    case PROP_SIGNAL_INTERVAL:
-      g_value_set_uint64 (value, filter->interval);
-      break;
     case PROP_SIGNAL_MINFREQ:
       g_value_set_int (value, filter->minfreq);
       break;
     case PROP_SIGNAL_MAXFREQ:
       g_value_set_int (value, filter->maxfreq);
       break;
-    case PROP_NFFT:
-      g_value_set_int (value, filter->nfft);
-      break;
-
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -251,12 +215,12 @@ static gboolean
 gst_pitch_set_caps (GstBaseTransform * trans, GstCaps * in, GstCaps * out)
 {
   GstPitch *filter = GST_PITCH (trans);
-  GstStructure *structure;
 
-  structure = gst_caps_get_structure (in, 0);
-  gst_structure_get_int (structure, "rate", &filter->rate);
-  gst_structure_get_int (structure, "width", &filter->width);
-  gst_structure_get_int (structure, "channels", &filter->channels);
+  filter->fft_cfg = kiss_fft_alloc (RATE, 0, NULL, NULL);
+  filter->signal =
+      (kiss_fft_cpx *) g_malloc (RATE * sizeof (kiss_fft_cpx));
+  filter->spectrum =
+      (kiss_fft_cpx *) g_malloc (RATE * sizeof (kiss_fft_cpx));
 
   return TRUE;
 }
@@ -267,7 +231,6 @@ gst_pitch_start (GstBaseTransform * trans)
   GstPitch *filter = GST_PITCH (trans);
 
   gst_adapter_clear (filter->adapter);
-  filter->num_frames = 0;
 
   return TRUE;
 }
@@ -282,25 +245,23 @@ gst_pitch_message_new (GstPitch * filter)
   /* Extract fundamental frequency */
   frequency = 0;
   frequency_module = 0;
-  min_i = filter->minfreq * filter->nfft / filter->rate;
-  max_i = filter->maxfreq * filter->nfft / filter->rate;
+  min_i = filter->minfreq;
+  max_i = filter->maxfreq;
   GST_DEBUG_OBJECT (filter, "min_freq = %d, max_freq = %d", filter->minfreq,
       filter->maxfreq);
   GST_DEBUG_OBJECT (filter, "min_i = %d, max_i = %d", min_i, max_i);
-  for (i = min_i; (i <= max_i) && (i < filter->nfft); i++) {
+  for (i = min_i; (i <= max_i) && (i < RATE); i++) {
     module = (filter->spectrum[i].r * filter->spectrum[i].r);
     module += (filter->spectrum[i].i * filter->spectrum[i].i);
 
     if (module > 0)
-      GST_DEBUG_OBJECT (filter, "module[%d] = %d", i, module);
+      GST_LOG_OBJECT (filter, "module[%d] = %d", i, module);
 
     if (module > frequency_module) {
       frequency_module = module;
       frequency = i;
     }
   }
-
-  frequency = frequency * filter->rate / filter->nfft;
 
   GST_DEBUG_OBJECT (filter, "preparing message, frequency = %d ", frequency);
 
@@ -318,43 +279,34 @@ gst_pitch_transform_ip (GstBaseTransform * trans, GstBuffer * in)
 {
   GstPitch *filter = GST_PITCH (trans);
   gint16 *samples;
-  gint wanted;
-  gint i, j, k;
-  gint32 acc;
+  gint i;
+  guint avail;
 
-  GST_DEBUG ("transform : %ld bytes", GST_BUFFER_SIZE (in));
-
+  GST_DEBUG_OBJECT (filter, "transform : %ld bytes", GST_BUFFER_SIZE (in));
   gst_adapter_push (filter->adapter, gst_buffer_ref (in));
+
   /* required number of bytes */
-  wanted = filter->channels * filter->nfft * 2;
+  avail = gst_adapter_available (filter->adapter);
+  GST_DEBUG_OBJECT (filter, "avail: %d wanted: %d", avail, WANTED);
 
-  while (gst_adapter_available (filter->adapter) > wanted) {
+  if (avail > WANTED) {
 
-    GST_DEBUG ("  adapter loop");
-    samples = (gint16 *) gst_adapter_peek (filter->adapter, wanted);
+    /* copy sample data in the complex vector */
+    samples = (gint16 *) gst_adapter_peek (filter->adapter, WANTED);
 
-    for (i = 0, j = 0; i < filter->nfft; i++) {
-      for (k = 0, acc = 0; k < filter->channels; k++)
-        acc += samples[j++];
-      filter->signal[i].r = (kiss_fft_scalar) (acc / filter->channels);
+    for (i = 0; i < RATE; i++) {
+      filter->signal[i].r = (kiss_fft_scalar) (samples[i]);
     }
-    gst_adapter_flush (filter->adapter, wanted);
 
-    GST_DEBUG ("  fft");
+    /* flush half second of data to implement sliding window */
+    gst_adapter_flush (filter->adapter, WANTED >> 1);
+
+    GST_DEBUG ("perform fft");
     kiss_fft (filter->fft_cfg, filter->signal, filter->spectrum);
 
-    GST_DEBUG ("  send message? %d", filter->num_frames);
-    filter->num_frames += filter->nfft;
-    /* do we need to message ? */
-    if (filter->num_frames >=
-        GST_CLOCK_TIME_TO_FRAMES (filter->interval, filter->rate)) {
-      if (filter->message) {
-        GstMessage *m = gst_pitch_message_new (filter);
-
-        GST_DEBUG ("  sending message");
-        gst_element_post_message (GST_ELEMENT (filter), m);
-      }
-      filter->num_frames = 0;
+    if (filter->message) {
+      GstMessage *m = gst_pitch_message_new (filter);
+      gst_element_post_message (GST_ELEMENT (filter), m);
     }
   }
 

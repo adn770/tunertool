@@ -50,18 +50,8 @@ struct _GstPitch
 
   /* properties */
   gboolean message;             /* whether or not to post messages */
-  gdouble interval;             /* how many seconds between emits */
   gint minfreq;                 /* initial frequency on scan for fundamental frequency */
   gint maxfreq;                 /* final frequency on scan for fundamental frequency */
-  gint nfft;                    /* number of samples taken for FFT */
-
-  /* <private> */
-  gint rate;                    /* caps variables */
-  gint width;
-  gint channels;
-
-  gint num_frames;              /* frame count (1 sample per channel) */
-  /* since last emit */
 
   kiss_fft_cfg fft_cfg;
   kiss_fft_cpx *signal;

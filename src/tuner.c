@@ -509,8 +509,8 @@ main (int argc, char *argv[])
 
   src1 = gst_element_factory_make (DEFAULT_AUDIOSRC, "src1");
   pitch = gst_element_factory_make ("pitch", "pitch");
-  g_object_set (G_OBJECT (pitch), "nfft", 8000, "message", TRUE, "minfreq", 10,
-      "maxfreq", 4000, "interval", GST_SECOND, NULL);
+  g_object_set (G_OBJECT (pitch), "message", TRUE, "minfreq", 10,
+      "maxfreq", 4000, NULL);
 
   sink1 = gst_element_factory_make ("fakesink", "sink1");
   g_object_set (G_OBJECT (sink1), "silent", 1, NULL);
