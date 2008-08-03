@@ -27,6 +27,7 @@
 
 #ifdef HILDON
 #  if HILDON==1
+#    include <hildon/hildon-defines.h>
 #    include <hildon/hildon-program.h>
 #    include <hildon/hildon-number-editor.h>
 #  elif defined(MAEMO1)
@@ -83,6 +84,8 @@ enum
 };
 
 #define NUM_LEDS (66)
+#define NUM_WKEYS (15) /* # of white keys in the piano keyboard */
+#define WKEY_WIDTH (45)
 
 static Note equal_tempered_scale[] = {
   {"C0", 16.35},
@@ -187,11 +190,10 @@ static GdkColor ledOnColor = { 0, 0 * 255, 180 * 255, 95 * 255 };
 static GdkColor ledOnColor2 = { 0, 180 * 255, 180 * 255, 0 * 255 };
 static GdkColor ledOffColor = { 0, 80 * 255, 80 * 255, 80 * 255 };
 
-GtkWidget *mainWin;
-GtkWidget *targetFrequency;
-GtkWidget *currentFrequency;
-GtkWidget *drawingarea1;
-GtkWidget *drawingarea2;
+static GtkWidget *targetFrequency;
+static GtkWidget *currentFrequency;
+static GtkWidget *drawingarea1;
+static GtkWidget *drawingarea2;
 
 static void
 recalculate_scale (double a4)
@@ -239,10 +241,43 @@ on_window_destroy (GtkObject * object, gpointer user_data)
 }
 
 static void
+toggle_fullscreen (GtkWindow * window)
+{
+  static gboolean fullscreen = FALSE;
+
+  fullscreen = !fullscreen;
+  if (fullscreen)
+    gtk_window_fullscreen (GTK_WINDOW (window));
+  else
+    gtk_window_unfullscreen (GTK_WINDOW (window));
+}
+
+static gboolean 
+key_press_event (GtkWidget * widget, GdkEventKey * event, GtkWindow * window)
+{
+  switch (event->keyval) {
+#ifdef HILDON
+    case HILDON_HARDKEY_FULLSCREEN:
+      toggle_fullscreen(window);
+      break;
+#endif
+    default:
+      break;
+  }
+
+  return FALSE;
+}
+
+static void
 draw_leds (gint n)
 {
   gint i, j, k;
   static GdkGC *gc = NULL;
+  gint width = drawingarea1->allocation.width;
+  gint led_width = ((gfloat) width / (gfloat) (NUM_LEDS)) * 0.8;
+  gint led_space = ((gfloat) width / (gfloat) (NUM_LEDS)) * 0.2;
+  gint led_total = led_width + led_space;
+  gint padding = (width - NUM_LEDS * led_total) / 2;
 
   if (!gc) {
     gc = gdk_gc_new (drawingarea1->window);
@@ -271,7 +306,7 @@ draw_leds (gint n)
       else
         gdk_gc_set_rgb_fg_color (gc, &ledOffColor);
 
-      gdk_draw_rectangle (drawingarea1->window, gc, TRUE, (i * 10) + 8, 2, 4,
+      gdk_draw_rectangle (drawingarea1->window, gc, TRUE, padding + (i * led_total) + ((led_total - 4) / 2), 2, 4,
           36);
     } else {
       if ((i >= j) && (i <= k))
@@ -279,7 +314,7 @@ draw_leds (gint n)
       else
         gdk_gc_set_rgb_fg_color (gc, &ledOffColor);
 
-      gdk_draw_rectangle (drawingarea1->window, gc, TRUE, (i * 10) + 6, 10, 8,
+      gdk_draw_rectangle (drawingarea1->window, gc, TRUE, padding + (i * led_total), 10, led_width,
           20);
     }
   }
@@ -293,10 +328,10 @@ update_frequency (gint frequency)
   gint i, j;
   gfloat diff, min_diff;
 
-  min_diff = fabs (frequency - (equal_tempered_scale[0].frequency - 10));
+  min_diff = frequency - (equal_tempered_scale[0].frequency - 10);
   for (i = j = 0; i < NUM_NOTES; i++) {
-    diff = fabs (frequency - equal_tempered_scale[i].frequency);
-    if (diff <= min_diff) {
+    diff = frequency - equal_tempered_scale[i].frequency;
+    if (fabs (diff) <= fabs (min_diff)) {
       min_diff = diff;
       j = i;
     } else {
@@ -347,10 +382,10 @@ keynote2freq (gint x, gint y)
 
   j = 0;
   found = 0;
-  for (i = 0; i < 15; i++) {
+  for (i = 0; i < NUM_WKEYS; i++) {
     // Test for a white key  
     j++;
-    if (between (x, i * 45, i * 45 + 44) && between (y, 0, height))
+    if (between (x, i * WKEY_WIDTH, i * WKEY_WIDTH + (WKEY_WIDTH - 1)) && between (y, 0, height))
       found = j;
     // Test for a black key
     if (((i % 7) != 2) && ((i % 7) != 6) && (i != 14)) {
@@ -379,22 +414,22 @@ expose_event (GtkWidget * widget, GdkEventExpose * event)
   gdk_gc_set_rgb_fg_color (gc, &drawingarea2->style->fg[0]);
 
   gdk_draw_rectangle (drawingarea2->window, gc, FALSE, 0, 0,
-      drawingarea2->allocation.width - 1, drawingarea2->allocation.height - 1);
+      NUM_WKEYS * WKEY_WIDTH, drawingarea2->allocation.height - 1);
 
-  for (i = 0; i < 14; i++)
-    gdk_draw_rectangle (drawingarea2->window, gc, FALSE, i * 45, 0,
-        45, drawingarea2->allocation.height - 1);
+  for (i = 0; i < NUM_WKEYS - 1; i++)
+    gdk_draw_rectangle (drawingarea2->window, gc, FALSE, i * WKEY_WIDTH, 0,
+        WKEY_WIDTH, drawingarea2->allocation.height - 1);
 
-  for (i = 0; i < 14; i++) {
+  for (i = 0; i < NUM_WKEYS - 1; i++) {
     if (((i % 7) != 2) && ((i % 7) != 6))
-      gdk_draw_rectangle (drawingarea2->window, gc, TRUE, 24 + i * 45, 0,
+      gdk_draw_rectangle (drawingarea2->window, gc, TRUE, 24 + i * WKEY_WIDTH, 0,
           42, drawingarea2->allocation.height / 2);
   }
   return FALSE;
 }
 
 static gboolean
-key_press_event (GtkWidget * widget, GdkEventButton * event, gpointer user_data)
+button_press_event (GtkWidget * widget, GdkEventButton * event, gpointer user_data)
 {
   GstElement *piano = GST_ELEMENT (user_data);
 
@@ -407,7 +442,7 @@ key_press_event (GtkWidget * widget, GdkEventButton * event, gpointer user_data)
 }
 
 static gboolean
-key_release_event (GtkWidget * widget, GdkEventButton * event,
+button_release_event (GtkWidget * widget, GdkEventButton * event,
     gpointer user_data)
 {
   GstElement *piano = GST_ELEMENT (user_data);
@@ -438,6 +473,7 @@ main (int argc, char *argv[])
   GstElement *src2, *sink2;
   GstBus *bus;
 
+  GtkWidget *mainWin;
   GtkWidget *mainBox;
   GtkWidget *box;
   GtkWidget *label;
@@ -542,6 +578,8 @@ main (int argc, char *argv[])
   /* GUI */
   g_signal_connect (G_OBJECT (mainWin), "destroy",
       G_CALLBACK (on_window_destroy), NULL);
+  g_signal_connect (G_OBJECT(mainWin), "key_press_event", 
+      G_CALLBACK(key_press_event), mainWin);
 
   /* Note label */
   targetFrequency = gtk_label_new ("");
@@ -592,18 +630,20 @@ main (int argc, char *argv[])
   gtk_box_pack_start (GTK_BOX (mainBox), label, FALSE, FALSE, 5);
 
   /* Piano keyboard */
+  alignment = gtk_alignment_new (0.5, 0.5, 0, 0);
   drawingarea2 = gtk_drawing_area_new ();
-  gtk_widget_set_size_request (drawingarea2, 636, 130);
-  gtk_box_pack_start (GTK_BOX (mainBox), drawingarea2, FALSE, FALSE, 5);
+  gtk_widget_set_size_request (drawingarea2, NUM_WKEYS * WKEY_WIDTH + 1, 130);
+  gtk_container_add (GTK_CONTAINER (alignment), drawingarea2);
+  gtk_box_pack_start (GTK_BOX (mainBox), alignment, FALSE, FALSE, 5);
 
   g_signal_connect (G_OBJECT (drawingarea2), "expose_event",
       G_CALLBACK (expose_event), NULL);
   if (piano_enabled) {
     g_signal_connect (G_OBJECT (drawingarea2), "button_press_event",
-        G_CALLBACK (key_press_event), (gpointer) src2);
+        G_CALLBACK (button_press_event), (gpointer) src2);
 
     g_signal_connect (G_OBJECT (drawingarea2), "button_release_event",
-        G_CALLBACK (key_release_event), (gpointer) src2);
+        G_CALLBACK (button_release_event), (gpointer) src2);
 
     gtk_widget_set_events (drawingarea2, GDK_EXPOSURE_MASK
         | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK);

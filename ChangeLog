@@ -1,3 +1,11 @@
+2008-08-03  Jari Tenhunen  <jari.tenhunen@iki.fi>
+	* src/tuner.c (key_press_event, key_release_event):
+	renamed to button_*_event
+	(toggle_fullscreen, key_press_event, main):
+	fullscreen mode, made leds scalable, 
+	centered piano keyboard
+	(update_frequency): fixed led display
+
 2008-07-30  Josep Torra   <j.torra@telefonica.net>
 
 	* src/gstpitch.c: (gst_pitch_class_init), (gst_pitch_init),
