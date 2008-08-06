@@ -195,6 +195,9 @@ static GtkWidget *currentFrequency;
 static GtkWidget *drawingarea1;
 static GtkWidget *drawingarea2;
 
+static GstElement *bin1 = NULL;
+static GstElement *bin2 = NULL;
+
 static void
 recalculate_scale (double a4)
 {
@@ -454,6 +457,25 @@ button_release_event (GtkWidget * widget, GdkEventButton * event,
   return TRUE;
 }
 
+static gboolean
+window_is_active_notify (GObject * object, GParamSpec * pspec, gpointer user_data)
+{
+  if (gtk_window_is_active (GTK_WINDOW (object))) {
+    if (bin1)
+      gst_element_set_state(bin1, GST_STATE_PLAYING);
+    if (bin2)
+      gst_element_set_state(bin2, GST_STATE_PLAYING);
+  }
+  else {
+    if (bin1)
+      gst_element_set_state(bin1, GST_STATE_PAUSED);
+    if (bin2)
+      gst_element_set_state(bin2, GST_STATE_PAUSED);
+  }
+
+  return FALSE;
+}
+
 int
 main (int argc, char *argv[])
 {
@@ -468,7 +490,6 @@ main (int argc, char *argv[])
   osso_context_t *osso_context = NULL;  /* handle to osso */
 #endif
 
-  GstElement *bin1, *bin2;
   GstElement *src1, *pitch, *sink1;
   GstElement *src2, *sink2;
   GstBus *bus;
@@ -539,6 +560,9 @@ main (int argc, char *argv[])
   mainBox = gtk_vbox_new (FALSE, 0);
   gtk_container_set_border_width (GTK_CONTAINER (mainBox), 0);
 #endif
+
+  if (GTK_IS_WINDOW (mainWin))
+    g_signal_connect (G_OBJECT (mainWin), "notify::is-active", G_CALLBACK (window_is_active_notify), NULL);
 
   /* Bin for tuner functionality */
   bin1 = gst_pipeline_new ("bin1");

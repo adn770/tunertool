@@ -1,3 +1,8 @@
+2008-08-06  Jari Tenhunen  <jari.tenhunen@iki.fi>
+	* src/tuner.c (main, window_is_active_notify):
+	pause pipelines when the application window is inactive,
+	should reduce energy consumption
+
 2008-08-03  Jari Tenhunen  <jari.tenhunen@iki.fi>
 	* src/tuner.c (key_press_event, key_release_event):
 	renamed to button_*_event
