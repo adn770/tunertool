@@ -1,3 +1,11 @@
+2008-08-08  Jari Tenhunen  <jari.tenhunen@iki.fi>
+	* src/tuner.c (main, stop_pipelines, osso_hw_state_cb,
+	set_pipeline_states, topmost_notify):
+	better power management: DSP will now sleep when display dims 
+	or the app has been on background for 30 seconds
+	* src/tuner.c: introduced AppData struct to bundle all needed
+	context variables
+
 2008-08-06  Jari Tenhunen  <jari.tenhunen@iki.fi>
 	* src/tuner.c (main, window_is_active_notify):
 	pause pipelines when the application window is inactive,

@@ -71,6 +71,25 @@ typedef struct
   gfloat frequency;
 } Note;
 
+struct app_data
+{
+  GtkWidget *targetFrequency;
+  GtkWidget *currentFrequency;
+  GtkWidget *drawingarea1;
+  GtkWidget *drawingarea2;
+
+  GstElement *bin1;
+  GstElement *bin2;
+  GstElement *tonesrc;
+  guint stop_timer_id;
+#ifdef MAEMO
+  osso_context_t *osso_context;
+  gpointer app;
+#endif
+};
+
+typedef struct app_data AppData;
+
 enum
 {
   NUM_NOTES = 96
@@ -190,14 +209,6 @@ static GdkColor ledOnColor = { 0, 0 * 255, 180 * 255, 95 * 255 };
 static GdkColor ledOnColor2 = { 0, 180 * 255, 180 * 255, 0 * 255 };
 static GdkColor ledOffColor = { 0, 80 * 255, 80 * 255, 80 * 255 };
 
-static GtkWidget *targetFrequency;
-static GtkWidget *currentFrequency;
-static GtkWidget *drawingarea1;
-static GtkWidget *drawingarea2;
-
-static GstElement *bin1 = NULL;
-static GstElement *bin2 = NULL;
-
 static void
 recalculate_scale (double a4)
 {
@@ -272,23 +283,23 @@ key_press_event (GtkWidget * widget, GdkEventKey * event, GtkWindow * window)
 }
 
 static void
-draw_leds (gint n)
+draw_leds (AppData * appdata, gint n)
 {
   gint i, j, k;
   static GdkGC *gc = NULL;
-  gint width = drawingarea1->allocation.width;
+  gint width = appdata->drawingarea1->allocation.width;
   gint led_width = ((gfloat) width / (gfloat) (NUM_LEDS)) * 0.8;
   gint led_space = ((gfloat) width / (gfloat) (NUM_LEDS)) * 0.2;
   gint led_total = led_width + led_space;
   gint padding = (width - NUM_LEDS * led_total) / 2;
 
   if (!gc) {
-    gc = gdk_gc_new (drawingarea1->window);
+    gc = gdk_gc_new (appdata->drawingarea1->window);
   }
-  gdk_gc_set_rgb_fg_color (gc, &drawingarea1->style->fg[0]);
+  gdk_gc_set_rgb_fg_color (gc, &appdata->drawingarea1->style->fg[0]);
 
-  gdk_draw_rectangle (drawingarea1->window, gc, TRUE, 0, 0,
-      drawingarea1->allocation.width, drawingarea1->allocation.height);
+  gdk_draw_rectangle (appdata->drawingarea1->window, gc, TRUE, 0, 0,
+      appdata->drawingarea1->allocation.width, appdata->drawingarea1->allocation.height);
 
   if (abs (n) > (NUM_LEDS / 2))
     n = n / n * (NUM_LEDS / 2);
@@ -309,7 +320,7 @@ draw_leds (gint n)
       else
         gdk_gc_set_rgb_fg_color (gc, &ledOffColor);
 
-      gdk_draw_rectangle (drawingarea1->window, gc, TRUE, padding + (i * led_total) + ((led_total - 4) / 2), 2, 4,
+      gdk_draw_rectangle (appdata->drawingarea1->window, gc, TRUE, padding + (i * led_total) + ((led_total - 4) / 2), 2, 4,
           36);
     } else {
       if ((i >= j) && (i <= k))
@@ -317,7 +328,7 @@ draw_leds (gint n)
       else
         gdk_gc_set_rgb_fg_color (gc, &ledOffColor);
 
-      gdk_draw_rectangle (drawingarea1->window, gc, TRUE, padding + (i * led_total), 10, led_width,
+      gdk_draw_rectangle (appdata->drawingarea1->window, gc, TRUE, padding + (i * led_total), 10, led_width,
           20);
     }
   }
@@ -325,7 +336,7 @@ draw_leds (gint n)
 
 /* update frequency info */
 static void
-update_frequency (gint frequency)
+update_frequency (AppData * appdata, gint frequency)
 {
   gchar *buffer;
   gint i, j;
@@ -345,14 +356,14 @@ update_frequency (gint frequency)
   buffer =
       g_strdup_printf ("Nearest note is %s with %.2f Hz frequency",
       equal_tempered_scale[j].name, equal_tempered_scale[j].frequency);
-  gtk_label_set_text (GTK_LABEL (targetFrequency), buffer);
+  gtk_label_set_text (GTK_LABEL (appdata->targetFrequency), buffer);
   g_free (buffer);
 
   buffer = g_strdup_printf ("Played frequency is %d Hz", frequency);
-  gtk_label_set_text (GTK_LABEL (currentFrequency), buffer);
+  gtk_label_set_text (GTK_LABEL (appdata->currentFrequency), buffer);
   g_free (buffer);
 
-  draw_leds ((gint) roundf (min_diff));
+  draw_leds (appdata, (gint) roundf (min_diff));
 }
 
 /* receive spectral data from element message */
@@ -367,7 +378,7 @@ message_handler (GstBus * bus, GstMessage * message, gpointer data)
       gint frequency;
 
       frequency = g_value_get_int (gst_structure_get_value (s, "frequency"));
-      update_frequency (frequency);
+      update_frequency (data, frequency);
     }
   }
   /* we handled the message we want, and ignored the ones we didn't want.
@@ -376,12 +387,12 @@ message_handler (GstBus * bus, GstMessage * message, gpointer data)
 }
 
 gfloat
-keynote2freq (gint x, gint y)
+keynote2freq (AppData * appdata, gint x, gint y)
 {
   gint i, j, height, found;
   gfloat frequency = 0;
 
-  height = drawingarea2->allocation.height;
+  height = appdata->drawingarea2->allocation.height;
 
   j = 0;
   found = 0;
@@ -406,27 +417,28 @@ keynote2freq (gint x, gint y)
 }
 
 static gboolean
-expose_event (GtkWidget * widget, GdkEventExpose * event)
+expose_event (GtkWidget * widget, GdkEventExpose * event, gpointer user_data)
 {
+  AppData * appdata = (AppData *) user_data;
   gint i;
   static GdkGC *gc = NULL;
 
   if (!gc) {
-    gc = gdk_gc_new (drawingarea2->window);
+    gc = gdk_gc_new (appdata->drawingarea2->window);
   }
-  gdk_gc_set_rgb_fg_color (gc, &drawingarea2->style->fg[0]);
+  gdk_gc_set_rgb_fg_color (gc, &appdata->drawingarea2->style->fg[0]);
 
-  gdk_draw_rectangle (drawingarea2->window, gc, FALSE, 0, 0,
-      NUM_WKEYS * WKEY_WIDTH, drawingarea2->allocation.height - 1);
+  gdk_draw_rectangle (appdata->drawingarea2->window, gc, FALSE, 0, 0,
+      NUM_WKEYS * WKEY_WIDTH, appdata->drawingarea2->allocation.height - 1);
 
   for (i = 0; i < NUM_WKEYS - 1; i++)
-    gdk_draw_rectangle (drawingarea2->window, gc, FALSE, i * WKEY_WIDTH, 0,
-        WKEY_WIDTH, drawingarea2->allocation.height - 1);
+    gdk_draw_rectangle (appdata->drawingarea2->window, gc, FALSE, i * WKEY_WIDTH, 0,
+        WKEY_WIDTH, appdata->drawingarea2->allocation.height - 1);
 
   for (i = 0; i < NUM_WKEYS - 1; i++) {
     if (((i % 7) != 2) && ((i % 7) != 6))
-      gdk_draw_rectangle (drawingarea2->window, gc, TRUE, 24 + i * WKEY_WIDTH, 0,
-          42, drawingarea2->allocation.height / 2);
+      gdk_draw_rectangle (appdata->drawingarea2->window, gc, TRUE, 24 + i * WKEY_WIDTH, 0,
+          42, appdata->drawingarea2->allocation.height / 2);
   }
   return FALSE;
 }
@@ -434,10 +446,10 @@ expose_event (GtkWidget * widget, GdkEventExpose * event)
 static gboolean
 button_press_event (GtkWidget * widget, GdkEventButton * event, gpointer user_data)
 {
-  GstElement *piano = GST_ELEMENT (user_data);
+  AppData * appdata = (AppData *) user_data;
 
   if (event->button == 1) {
-    g_object_set (piano, "freq", (gdouble) keynote2freq (event->x, event->y),
+    g_object_set (appdata->tonesrc, "freq", (gdouble) keynote2freq (appdata, event->x, event->y),
         "volume", 0.8, NULL);
   }
 
@@ -448,37 +460,109 @@ static gboolean
 button_release_event (GtkWidget * widget, GdkEventButton * event,
     gpointer user_data)
 {
-  GstElement *piano = GST_ELEMENT (user_data);
+  AppData * appdata = (AppData *) user_data;
 
   if (event->button == 1) {
-    g_object_set (piano, "volume", 0.0, NULL);
+    g_object_set (appdata->tonesrc, "volume", 0.0, NULL);
   }
 
   return TRUE;
 }
 
-static gboolean
-window_is_active_notify (GObject * object, GParamSpec * pspec, gpointer user_data)
+static void
+set_pipeline_states (AppData * appdata, GstState state)
 {
-  if (gtk_window_is_active (GTK_WINDOW (object))) {
-    if (bin1)
-      gst_element_set_state(bin1, GST_STATE_PLAYING);
-    if (bin2)
-      gst_element_set_state(bin2, GST_STATE_PLAYING);
-  }
-  else {
-    if (bin1)
-      gst_element_set_state(bin1, GST_STATE_PAUSED);
-    if (bin2)
-      gst_element_set_state(bin2, GST_STATE_PAUSED);
-  }
+    if (appdata->bin1)
+      gst_element_set_state (appdata->bin1, state);
+
+    if (appdata->bin2)
+      gst_element_set_state (appdata->bin2, state);
+}
+
+static gboolean
+stop_pipelines (gpointer user_data)
+{
+  AppData * appdata = (AppData *) user_data;
+
+  /* dsppcmsrc needs to go to READY or NULL state to make 
+   * the DSP sleep and OMAP reach retention mode */
+  set_pipeline_states (appdata, GST_STATE_READY); 
+  appdata->stop_timer_id = 0;
 
   return FALSE;
 }
 
+#ifdef MAEMO
+static void
+osso_hw_state_cb (osso_hw_state_t *state, gpointer user_data)
+{
+  AppData * appdata = (AppData *) user_data;
+
+  if (state->shutdown_ind) {
+    gtk_main_quit ();
+    return;
+  }
+
+  if (state->system_inactivity_ind) {
+    if (appdata->stop_timer_id != 0)
+      g_source_remove (appdata->stop_timer_id);
+
+    appdata->stop_timer_id = g_timeout_add (5000, (GSourceFunc) stop_pipelines, user_data);
+  }
+  else {
+#if HILDON == 1
+    if (hildon_program_get_is_topmost (HILDON_PROGRAM (appdata->app))) {
+      if (appdata->stop_timer_id != 0) {
+        g_source_remove (appdata->stop_timer_id);
+        appdata->stop_timer_id = 0;
+      }
+
+      set_pipeline_states (appdata, GST_STATE_PLAYING);
+    }
+    /* not topmost => topmost_notify will set pipelines to PLAYING 
+     * when the application is on the foreground again */
+#else
+    if (appdata->stop_timer_id != 0) {
+      g_source_remove (appdata->stop_timer_id);
+      appdata->stop_timer_id = 0;
+    }
+
+    set_pipeline_states (appdata, GST_STATE_PLAYING);
+#endif
+
+  }
+}
+#endif
+
+#if HILDON == 1
+static gboolean
+topmost_notify (GObject * object, GParamSpec * pspec, gpointer user_data)
+{
+  AppData * appdata = (AppData *) user_data;
+
+  if (hildon_program_get_is_topmost (HILDON_PROGRAM (object))) {
+    if (appdata->stop_timer_id != 0) {
+      g_source_remove (appdata->stop_timer_id);
+      appdata->stop_timer_id = 0;
+    }
+
+    set_pipeline_states (appdata, GST_STATE_PLAYING);
+  }
+  else {
+    /* pause pipelines so that we don't update the UI needlessly */
+    set_pipeline_states (appdata, GST_STATE_PAUSED);
+    /* stop pipelines fully if the app stays in the background for 30 seconds */
+    appdata->stop_timer_id = g_timeout_add (30000, (GSourceFunc) stop_pipelines, user_data);
+  }
+
+  return FALSE;
+}
+#endif
+
 int
 main (int argc, char *argv[])
 {
+  AppData * appdata = NULL;
 #ifdef HILDON
 #if defined(MAEMO1)
   HildonApp *app = NULL;
@@ -487,11 +571,11 @@ main (int argc, char *argv[])
   HildonProgram *app = NULL;
   HildonWindow *view = NULL;
 #endif
-  osso_context_t *osso_context = NULL;  /* handle to osso */
+  osso_hw_state_t hw_state_mask = { TRUE, FALSE, FALSE, TRUE, 0 };
 #endif
 
-  GstElement *src1, *pitch, *sink1;
-  GstElement *src2, *sink2;
+  GstElement *src1, *src2, *pitch, *sink1;
+  GstElement *sink2;
   GstBus *bus;
 
   GtkWidget *mainWin;
@@ -507,6 +591,8 @@ main (int argc, char *argv[])
   GError *error = NULL;
 #endif
   gboolean piano_enabled = TRUE;
+
+  appdata = g_new0(AppData, 1);
 
   /* Init GStreamer */
   gst_init (&argc, &argv);
@@ -530,14 +616,19 @@ main (int argc, char *argv[])
   g_set_application_name ("Tuner Tool");
 #endif
 
+  appdata->app = app;
+
   /* Initialize maemo application */
-  osso_context = osso_initialize (OSSO_PACKAGE, OSSO_VERSION, TRUE, NULL);
+  appdata->osso_context = osso_initialize (OSSO_PACKAGE, OSSO_VERSION, TRUE, NULL);
 
   /* Check that initialization was ok */
-  if (osso_context == NULL) {
+  if (appdata->osso_context == NULL) {
     g_print ("Bummer, osso failed\n");
   }
-  g_assert (osso_context);
+  g_assert (appdata->osso_context);
+
+  if (osso_hw_set_event_cb (appdata->osso_context, &hw_state_mask, osso_hw_state_cb, appdata) != OSSO_OK)
+    g_warning ("setting osso_hw_state_cb failed!");
 
   mainBox = gtk_vbox_new (FALSE, 0);
   gtk_container_set_border_width (GTK_CONTAINER (mainBox), 0);
@@ -548,6 +639,7 @@ main (int argc, char *argv[])
 #else
   view = HILDON_WINDOW (hildon_window_new ());
   mainWin = GTK_WIDGET (view);
+  g_signal_connect (G_OBJECT (app), "notify::is-topmost", G_CALLBACK (topmost_notify), appdata);
 #endif
 #else
   mainWin = gtk_window_new (GTK_WINDOW_TOPLEVEL);
@@ -561,11 +653,8 @@ main (int argc, char *argv[])
   gtk_container_set_border_width (GTK_CONTAINER (mainBox), 0);
 #endif
 
-  if (GTK_IS_WINDOW (mainWin))
-    g_signal_connect (G_OBJECT (mainWin), "notify::is-active", G_CALLBACK (window_is_active_notify), NULL);
-
   /* Bin for tuner functionality */
-  bin1 = gst_pipeline_new ("bin1");
+  appdata->bin1 = gst_pipeline_new ("bin1");
 
   src1 = gst_element_factory_make (DEFAULT_AUDIOSRC, "src1");
   pitch = gst_element_factory_make ("pitch", "pitch");
@@ -575,18 +664,18 @@ main (int argc, char *argv[])
   sink1 = gst_element_factory_make ("fakesink", "sink1");
   g_object_set (G_OBJECT (sink1), "silent", 1, NULL);
 
-  gst_bin_add_many (GST_BIN (bin1), src1, pitch, sink1, NULL);
+  gst_bin_add_many (GST_BIN (appdata->bin1), src1, pitch, sink1, NULL);
   if (!gst_element_link_many (src1, pitch, sink1, NULL)) {
     fprintf (stderr, "cant link elements\n");
     exit (1);
   }
 
-  bus = gst_element_get_bus (bin1);
-  gst_bus_add_watch (bus, message_handler, NULL);
+  bus = gst_element_get_bus (appdata->bin1);
+  gst_bus_add_watch (bus, message_handler, appdata);
   gst_object_unref (bus);
 
   /* Bin for piano functionality */
-  bin2 = gst_pipeline_new ("bin2");
+  appdata->bin2 = gst_pipeline_new ("bin2");
 
   //src2 = gst_element_factory_make ("audiotestsrc", "src2");
   //g_object_set (G_OBJECT (src2), "volume", 0.0, "wave", 7, NULL);
@@ -594,10 +683,12 @@ main (int argc, char *argv[])
   g_object_set (G_OBJECT (src2), "volume", 0.0, NULL);
   sink2 = gst_element_factory_make (DEFAULT_AUDIOSINK, "sink2");
 
-  gst_bin_add_many (GST_BIN (bin2), src2, sink2, NULL);
+  gst_bin_add_many (GST_BIN (appdata->bin2), src2, sink2, NULL);
   if (!gst_element_link_many (src2, sink2, NULL)) {
     piano_enabled = FALSE;
   }
+
+  appdata->tonesrc = src2;
 
   /* GUI */
   g_signal_connect (G_OBJECT (mainWin), "destroy",
@@ -606,17 +697,17 @@ main (int argc, char *argv[])
       G_CALLBACK(key_press_event), mainWin);
 
   /* Note label */
-  targetFrequency = gtk_label_new ("");
-  gtk_box_pack_start (GTK_BOX (mainBox), targetFrequency, FALSE, FALSE, 5);
+  appdata->targetFrequency = gtk_label_new ("");
+  gtk_box_pack_start (GTK_BOX (mainBox), appdata->targetFrequency, FALSE, FALSE, 5);
 
   /* Leds */
-  drawingarea1 = gtk_drawing_area_new ();
-  gtk_widget_set_size_request (drawingarea1, 636, 40);
-  gtk_box_pack_start (GTK_BOX (mainBox), drawingarea1, FALSE, FALSE, 5);
+  appdata->drawingarea1 = gtk_drawing_area_new ();
+  gtk_widget_set_size_request (appdata->drawingarea1, 636, 40);
+  gtk_box_pack_start (GTK_BOX (mainBox), appdata->drawingarea1, FALSE, FALSE, 5);
 
   /* Current frequency lable */
-  currentFrequency = gtk_label_new ("");
-  gtk_box_pack_start (GTK_BOX (mainBox), currentFrequency, FALSE, FALSE, 5);
+  appdata->currentFrequency = gtk_label_new ("");
+  gtk_box_pack_start (GTK_BOX (mainBox), appdata->currentFrequency, FALSE, FALSE, 5);
 
   /* Calibration spinner */
   box = gtk_hbox_new (FALSE, 0);
@@ -655,24 +746,24 @@ main (int argc, char *argv[])
 
   /* Piano keyboard */
   alignment = gtk_alignment_new (0.5, 0.5, 0, 0);
-  drawingarea2 = gtk_drawing_area_new ();
-  gtk_widget_set_size_request (drawingarea2, NUM_WKEYS * WKEY_WIDTH + 1, 130);
-  gtk_container_add (GTK_CONTAINER (alignment), drawingarea2);
+  appdata->drawingarea2 = gtk_drawing_area_new ();
+  gtk_widget_set_size_request (appdata->drawingarea2, NUM_WKEYS * WKEY_WIDTH + 1, 130);
+  gtk_container_add (GTK_CONTAINER (alignment), appdata->drawingarea2);
   gtk_box_pack_start (GTK_BOX (mainBox), alignment, FALSE, FALSE, 5);
 
-  g_signal_connect (G_OBJECT (drawingarea2), "expose_event",
-      G_CALLBACK (expose_event), NULL);
+  g_signal_connect (G_OBJECT (appdata->drawingarea2), "expose_event",
+      G_CALLBACK (expose_event), appdata);
   if (piano_enabled) {
-    g_signal_connect (G_OBJECT (drawingarea2), "button_press_event",
-        G_CALLBACK (button_press_event), (gpointer) src2);
+    g_signal_connect (G_OBJECT (appdata->drawingarea2), "button_press_event",
+        G_CALLBACK (button_press_event), (gpointer) appdata);
 
-    g_signal_connect (G_OBJECT (drawingarea2), "button_release_event",
-        G_CALLBACK (button_release_event), (gpointer) src2);
+    g_signal_connect (G_OBJECT (appdata->drawingarea2), "button_release_event",
+        G_CALLBACK (button_release_event), (gpointer) appdata);
 
-    gtk_widget_set_events (drawingarea2, GDK_EXPOSURE_MASK
+    gtk_widget_set_events (appdata->drawingarea2, GDK_EXPOSURE_MASK
         | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK);
   } else {
-    gtk_widget_set_events (drawingarea2, GDK_EXPOSURE_MASK);
+    gtk_widget_set_events (appdata->drawingarea2, GDK_EXPOSURE_MASK);
   }
 #ifdef HILDON
   gtk_container_add (GTK_CONTAINER (view), mainBox);
@@ -688,14 +779,12 @@ main (int argc, char *argv[])
   gtk_widget_show_all (GTK_WIDGET (mainWin));
 #endif
 
-  gst_element_set_state (bin1, GST_STATE_PLAYING);
-  gst_element_set_state (bin2, GST_STATE_PLAYING);
+  set_pipeline_states (appdata, GST_STATE_PLAYING);
   gtk_main ();
-  gst_element_set_state (bin2, GST_STATE_NULL);
-  gst_element_set_state (bin1, GST_STATE_NULL);
+  set_pipeline_states (appdata, GST_STATE_NULL);
 
-  gst_object_unref (bin1);
-  gst_object_unref (bin2);
+  gst_object_unref (appdata->bin1);
+  gst_object_unref (appdata->bin2);
 
   return 0;
 }
