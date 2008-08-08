@@ -85,6 +85,7 @@ struct app_data
 #ifdef MAEMO
   osso_context_t *osso_context;
   gpointer app;
+  guint display_timer_id;
 #endif
 };
 
@@ -244,7 +245,6 @@ calibration_changed (GObject * object, GParamSpec * pspec, gpointer user_data)
 
   if (value >= CALIB_MIN && value <= CALIB_MAX) {
     recalculate_scale (value);
-    g_debug ("Calibration changed to %d Hz", value);
   }
 }
 
@@ -272,7 +272,7 @@ key_press_event (GtkWidget * widget, GdkEventKey * event, GtkWindow * window)
   switch (event->keyval) {
 #ifdef HILDON
     case HILDON_HARDKEY_FULLSCREEN:
-      toggle_fullscreen(window);
+      toggle_fullscreen (window);
       break;
 #endif
     default:
@@ -504,10 +504,14 @@ osso_hw_state_cb (osso_hw_state_t *state, gpointer user_data)
   }
 
   if (state->system_inactivity_ind) {
-    if (appdata->stop_timer_id != 0)
-      g_source_remove (appdata->stop_timer_id);
+    /* do not stop pipelines if the app is on foreground 
+     * and display is kept on */
+    if (appdata->display_timer_id == 0) {
+      if (appdata->stop_timer_id != 0)
+        g_source_remove (appdata->stop_timer_id);
 
-    appdata->stop_timer_id = g_timeout_add (5000, (GSourceFunc) stop_pipelines, user_data);
+      appdata->stop_timer_id = g_timeout_add (5000, (GSourceFunc) stop_pipelines, user_data);
+    }
   }
   else {
 #if HILDON == 1
@@ -532,27 +536,59 @@ osso_hw_state_cb (osso_hw_state_t *state, gpointer user_data)
 
   }
 }
-#endif
+#endif /* MAEMO */
 
 #if HILDON == 1
+static gboolean
+display_keepalive (gpointer user_data)
+{
+  AppData * appdata = (AppData *) user_data;
+
+  /* first (direct) call: call blanking_pause and set up timer */
+  if (appdata->display_timer_id == 0) {
+    osso_display_blanking_pause (appdata->osso_context);
+    appdata->display_timer_id = g_timeout_add (55000, (GSourceFunc) display_keepalive, user_data);
+    return TRUE; /* does not really matter */
+  }
+
+  /* callback from main loop */
+  if (hildon_program_get_is_topmost (HILDON_PROGRAM (appdata->app))) {
+    osso_display_blanking_pause (appdata->osso_context);
+    return TRUE;
+  }
+  /* else */
+  appdata->display_timer_id = 0;
+  return FALSE;
+}
+
 static gboolean
 topmost_notify (GObject * object, GParamSpec * pspec, gpointer user_data)
 {
   AppData * appdata = (AppData *) user_data;
 
   if (hildon_program_get_is_topmost (HILDON_PROGRAM (object))) {
+    /* cancel pipeline stop timer if it is ticking */
     if (appdata->stop_timer_id != 0) {
       g_source_remove (appdata->stop_timer_id);
       appdata->stop_timer_id = 0;
     }
 
     set_pipeline_states (appdata, GST_STATE_PLAYING);
+
+    /* keep display on */
+    if (appdata->display_timer_id == 0)
+      display_keepalive (user_data);
   }
   else {
     /* pause pipelines so that we don't update the UI needlessly */
     set_pipeline_states (appdata, GST_STATE_PAUSED);
     /* stop pipelines fully if the app stays in the background for 30 seconds */
     appdata->stop_timer_id = g_timeout_add (30000, (GSourceFunc) stop_pipelines, user_data);
+    /* let display dim and switch off */
+    if (appdata->display_timer_id) {
+      g_source_remove (appdata->display_timer_id);
+      appdata->display_timer_id = 0;
+    }
   }
 
   return FALSE;
@@ -627,6 +663,7 @@ main (int argc, char *argv[])
   }
   g_assert (appdata->osso_context);
 
+  /* could use also display_event_cb but it is available only from chinook onwards */
   if (osso_hw_set_event_cb (appdata->osso_context, &hw_state_mask, osso_hw_state_cb, appdata) != OSSO_OK)
     g_warning ("setting osso_hw_state_cb failed!");
 
@@ -780,6 +817,7 @@ main (int argc, char *argv[])
 #endif
 
   set_pipeline_states (appdata, GST_STATE_PLAYING);
+  display_keepalive (appdata);
   gtk_main ();
   set_pipeline_states (appdata, GST_STATE_NULL);
 

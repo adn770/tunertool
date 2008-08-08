@@ -5,6 +5,8 @@
 	or the app has been on background for 30 seconds
 	* src/tuner.c: introduced AppData struct to bundle all needed
 	context variables
+	* src/tuner.c (display_keepalive): keep display on when app
+	window is on foreground
 
 2008-08-06  Jari Tenhunen  <jari.tenhunen@iki.fi>
 	* src/tuner.c (main, window_is_active_notify):
