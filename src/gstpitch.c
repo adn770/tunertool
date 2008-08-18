@@ -1,3 +1,4 @@
+/* vim: set sts=2 sw=2 et: */
 /*
  * GStreamer
  * Copyright (C) 2006 Josep Torra <j.torra@telefonica.net>
@@ -40,7 +41,8 @@ enum
   PROP_SIGNAL_INTERVAL,
   PROP_SIGNAL_MINFREQ,
   PROP_SIGNAL_MAXFREQ,
-  PROP_NFFT
+  PROP_NFFT,
+  PROP_ALGORITHM
 };
 
 static GstStaticPadTemplate sink_template = GST_STATIC_PAD_TEMPLATE ("sink",
@@ -81,6 +83,27 @@ static gboolean gst_pitch_start (GstBaseTransform * trans);
 
 static GstFlowReturn gst_pitch_transform_ip (GstBaseTransform * trans,
     GstBuffer * in);
+
+#define DEFAULT_PROP_ALGORITHM GST_PITCH_ALGORITHM_FFT
+
+#define GST_TYPE_PITCH_ALGORITHM (gst_pitch_algorithm_get_type())
+static GType
+gst_pitch_algorithm_get_type (void)
+{
+  static GType pitch_algorithm_type = 0;
+  static const GEnumValue pitch_algorithm[] = {
+    {GST_PITCH_ALGORITHM_FFT, "fft", "fft"},
+    {GST_PITCH_ALGORITHM_HPS, "hps", "hps"},
+    {0, NULL, NULL},
+  };
+
+  if (!pitch_algorithm_type) {
+    pitch_algorithm_type =
+        g_enum_register_static ("GstPitchAlgorithm",
+        pitch_algorithm);
+  }
+  return pitch_algorithm_type;
+}
 
 /* GObject vmethod implementations */
 
@@ -133,9 +156,29 @@ gst_pitch_class_init (GstPitchClass * klass)
           "Final scan frequency, default 1500 Hz",
           1, G_MAXINT, 1500, G_PARAM_READWRITE));
 
+  g_object_class_install_property (gobject_class, PROP_ALGORITHM,
+      g_param_spec_enum ("algorithm", "Algorithm",
+          "Pitch detection algorithm to use",
+          GST_TYPE_PITCH_ALGORITHM, DEFAULT_PROP_ALGORITHM,
+          G_PARAM_READWRITE));
+
 
   GST_BASE_TRANSFORM_CLASS (klass)->transform_ip =
       GST_DEBUG_FUNCPTR (gst_pitch_transform_ip);
+}
+
+static void
+gst_pitch_setup_algorithm (GstPitch * filter)
+{
+  if (filter->algorithm == GST_PITCH_ALGORITHM_HPS) {
+    filter->module = (gint *) g_malloc (RATE * sizeof (gint));
+  }
+  else {
+    if (filter->module) 
+      g_free (filter->module);
+
+    filter->module = NULL;
+  }
 }
 
 static void
@@ -146,6 +189,8 @@ gst_pitch_init (GstPitch * filter, GstPitchClass * klass)
   filter->minfreq = 30;
   filter->maxfreq = 1500;
   filter->message = TRUE;
+  filter->algorithm = DEFAULT_PROP_ALGORITHM;
+  gst_pitch_setup_algorithm (filter);
 }
 
 static void
@@ -161,6 +206,8 @@ gst_pitch_dispose (GObject * object)
   g_free (filter->fft_cfg);
   g_free (filter->signal);
   g_free (filter->spectrum);
+  if (filter->module)
+    g_free (filter->module);
 
   kiss_fft_cleanup ();
 
@@ -183,6 +230,10 @@ gst_pitch_set_property (GObject * object, guint prop_id,
     case PROP_SIGNAL_MAXFREQ:
       filter->maxfreq = g_value_get_int (value);
       break;
+    case PROP_ALGORITHM:
+      filter->algorithm = g_value_get_enum (value);
+      gst_pitch_setup_algorithm (filter);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -204,6 +255,9 @@ gst_pitch_get_property (GObject * object, guint prop_id,
       break;
     case PROP_SIGNAL_MAXFREQ:
       g_value_set_int (value, filter->maxfreq);
+      break;
+    case PROP_ALGORITHM:
+      g_value_set_enum (value, filter->algorithm);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -240,29 +294,92 @@ gst_pitch_message_new (GstPitch * filter)
 {
   GstStructure *s;
   gint i, min_i, max_i;
-  gint frequency, frequency_module, module;
+  gint frequency, frequency_module;
 
   /* Extract fundamental frequency */
   frequency = 0;
   frequency_module = 0;
   min_i = filter->minfreq;
   max_i = filter->maxfreq;
+
   GST_DEBUG_OBJECT (filter, "min_freq = %d, max_freq = %d", filter->minfreq,
       filter->maxfreq);
-  GST_DEBUG_OBJECT (filter, "min_i = %d, max_i = %d", min_i, max_i);
-  for (i = min_i; (i <= max_i) && (i < RATE); i++) {
-    module = (filter->spectrum[i].r * filter->spectrum[i].r);
-    module += (filter->spectrum[i].i * filter->spectrum[i].i);
+  /*GST_DEBUG_OBJECT (filter, "min_i = %d, max_i = %d", min_i, max_i); */
 
-    if (module > 0)
-      GST_LOG_OBJECT (filter, "module[%d] = %d", i, module);
+  switch (filter->algorithm) {
 
-    if (module > frequency_module) {
-      frequency_module = module;
-      frequency = i;
-    }
+    case GST_PITCH_ALGORITHM_FFT:
+      {
+        gint module = 0;
+
+        for (i = min_i; i < max_i; i++) {
+          module = (filter->spectrum[i].r * filter->spectrum[i].r);
+          module += (filter->spectrum[i].i * filter->spectrum[i].i);
+
+          if (module > 0)
+            GST_LOG_OBJECT (filter, "module[%d] = %d", i, module);
+
+          /* find strongest peak */
+          if (module > frequency_module) {
+            frequency_module = module;
+            frequency = i;
+          }
+        }
+      }
+      break;
+
+    case GST_PITCH_ALGORITHM_HPS:
+      {
+        gint prev_frequency = 0;
+        gint j, t;
+
+        for (i = min_i; i < RATE; i++) {
+          filter->module[i] = (filter->spectrum[i].r * filter->spectrum[i].r);
+          filter->module[i] += (filter->spectrum[i].i * filter->spectrum[i].i);
+
+          if (filter->module[i] > 0)
+            GST_LOG_OBJECT (filter, "module[%d] = %d", i, filter->module[i]);
+
+        }
+        /* Harmonic Product Spectrum algorithm */
+#define MAX_DS_FACTOR (6)
+        for (i = min_i; (i <= max_i) && (i < RATE); i++) {
+          for (j = 2; j <= MAX_DS_FACTOR; j++) {
+            t = i * j;
+            if (t > RATE)
+              break;
+
+            /* this is not part of the HPS but it seems
+             * there are lots of zeroes in the spectrum ... 
+             */
+            if (filter->module[t] != 0) 
+              filter->module[i] *= filter->module[t];
+          }
+
+          /* find strongest peak */
+          if (filter->module[i] > frequency_module) {
+            prev_frequency = frequency;
+            frequency_module = filter->module[i];
+            frequency = i;
+          }
+        }
+
+        /* try to correct octave error */
+        if (frequency != 0 && prev_frequency != 0) {
+          float ratio = (float) frequency / (float) prev_frequency;
+          if (ratio >= 1.9 && ratio < 2.1 && (float) filter->module[prev_frequency] >= 0.2 * (float) frequency_module ) {
+            g_debug("Chose freq %d[%d] over %d[%d]\n", prev_frequency, filter->module[prev_frequency], frequency, filter->module[frequency]);
+            frequency = prev_frequency;
+            frequency_module = filter->module[prev_frequency];
+          } 
+        }
+      }
+      break;
+    default:
+      break;
   }
 
+  g_debug("freq %d[%d]\n", frequency, frequency_module);
   GST_DEBUG_OBJECT (filter, "preparing message, frequency = %d ", frequency);
 
   s = gst_structure_new ("pitch", "frequency", G_TYPE_INT, frequency, NULL);

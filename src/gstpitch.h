@@ -41,6 +41,19 @@ G_BEGIN_DECLS
 typedef struct _GstPitch GstPitch;
 typedef struct _GstPitchClass GstPitchClass;
 
+/**
+ * GstPitchAlgorithm:
+ * @GST_PITCH_ALGORITHM_FFT: simple FFT
+ * @GST_PITCH_ALGORITHM_HPS: Harmonic Product Spectrum
+ *
+ * Pitch detection algorithm.
+ */
+typedef enum 
+{
+	GST_PITCH_ALGORITHM_FFT,
+	GST_PITCH_ALGORITHM_HPS
+} GstPitchAlgorithm;
+
 struct _GstPitch
 {
   GstBaseTransform element;
@@ -52,10 +65,13 @@ struct _GstPitch
   gboolean message;             /* whether or not to post messages */
   gint minfreq;                 /* initial frequency on scan for fundamental frequency */
   gint maxfreq;                 /* final frequency on scan for fundamental frequency */
+  GstPitchAlgorithm algorithm;	/* current pitch detection algorithm */
 
   kiss_fft_cfg fft_cfg;
   kiss_fft_cpx *signal;
   kiss_fft_cpx *spectrum;
+
+  gint * module;
 };
 
 struct _GstPitchClass

@@ -1,3 +1,7 @@
+2008-08-18  Jari Tenhunen  <jari.tenhunen@iki.fi>
+	* src/gstpitch.h src/gstpitch.c:
+	Added Harmonic Product Spectrum algorithm and "algorithm" property.
+
 2008-08-08  Jari Tenhunen  <jari.tenhunen@iki.fi>
 	* src/tuner.c (main, stop_pipelines, osso_hw_state_cb,
 	set_pipeline_states, topmost_notify):
