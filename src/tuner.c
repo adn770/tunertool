@@ -57,6 +57,10 @@
 #include <math.h>
 #include <gst/gst.h>
 #include <gtk/gtk.h>
+#include <gconf/gconf-client.h>
+
+#include "gstpitch.h"
+#include "settings.h"
 
 #define between(x,a,b) (((x)>=(a)) && ((x)<=(b)))
 
@@ -81,7 +85,10 @@ struct app_data
   GstElement *bin1;
   GstElement *bin2;
   GstElement *tonesrc;
+  GstElement *pitch;
   guint stop_timer_id;
+
+  gboolean display_keepalive;
 #ifdef MAEMO
   osso_context_t *osso_context;
   gpointer app;
@@ -245,6 +252,7 @@ calibration_changed (GObject * object, GParamSpec * pspec, gpointer user_data)
 
   if (value >= CALIB_MIN && value <= CALIB_MAX) {
     recalculate_scale (value);
+    settings_set_calibration (value);
   }
 }
 
@@ -561,6 +569,15 @@ display_keepalive (gpointer user_data)
   return FALSE;
 }
 
+static void
+display_keepalive_stop (AppData * appdata)
+{
+  if (appdata->display_timer_id) {
+    g_source_remove (appdata->display_timer_id);
+    appdata->display_timer_id = 0;
+  }
+}
+
 static gboolean
 topmost_notify (GObject * object, GParamSpec * pspec, gpointer user_data)
 {
@@ -576,7 +593,7 @@ topmost_notify (GObject * object, GParamSpec * pspec, gpointer user_data)
     set_pipeline_states (appdata, GST_STATE_PLAYING);
 
     /* keep display on */
-    if (appdata->display_timer_id == 0)
+    if (appdata->display_keepalive && appdata->display_timer_id == 0)
       display_keepalive (user_data);
   }
   else {
@@ -585,15 +602,44 @@ topmost_notify (GObject * object, GParamSpec * pspec, gpointer user_data)
     /* stop pipelines fully if the app stays in the background for 30 seconds */
     appdata->stop_timer_id = g_timeout_add (30000, (GSourceFunc) stop_pipelines, user_data);
     /* let display dim and switch off */
-    if (appdata->display_timer_id) {
-      g_source_remove (appdata->display_timer_id);
-      appdata->display_timer_id = 0;
-    }
+    display_keepalive_stop (appdata);
   }
 
   return FALSE;
 }
 #endif
+
+static void
+settings_notify (GConfClient * client, guint cnxn_id, GConfEntry * entry, gpointer user_data)
+{
+  AppData * appdata = (AppData *) user_data;
+
+  g_debug ("%s changed", gconf_entry_get_key (entry));
+
+  if (strcmp (gconf_entry_get_key (entry), GCONF_KEY_ALGORITHM) == 0) {
+    if (gconf_entry_get_value (entry) != NULL && gconf_entry_get_value (entry)->type == GCONF_VALUE_INT) {
+      g_object_set (G_OBJECT (appdata->pitch), 
+          "algorithm", gconf_value_get_int (gconf_entry_get_value (entry)),
+          NULL);
+    }
+  }
+  else if (strcmp (gconf_entry_get_key (entry), GCONF_KEY_CALIBRATION) == 0) {
+    /* TODO */
+  }
+  else if (strcmp (gconf_entry_get_key (entry), GCONF_KEY_DISPLAY_KEEPALIVE) == 0) {
+    if (gconf_entry_get_value (entry) != NULL && gconf_entry_get_value (entry)->type == GCONF_VALUE_BOOL) {
+      appdata->display_keepalive = gconf_value_get_bool (gconf_entry_get_value (entry));
+
+      if (appdata->display_keepalive && appdata->display_timer_id == 0)
+        display_keepalive (user_data);
+      else
+        display_keepalive_stop (appdata);
+    }
+  }
+  else {
+    g_warning ("unknown GConf key `%s'", gconf_entry_get_key (entry));
+  }
+}
 
 int
 main (int argc, char *argv[])
@@ -609,8 +655,9 @@ main (int argc, char *argv[])
 #endif
   osso_hw_state_t hw_state_mask = { TRUE, FALSE, FALSE, TRUE, 0 };
 #endif
+  gint calib;
 
-  GstElement *src1, *src2, *pitch, *sink1;
+  GstElement *src1, *src2, *sink1;
   GstElement *sink2;
   GstBus *bus;
 
@@ -636,7 +683,6 @@ main (int argc, char *argv[])
   plugin_pitch_init (NULL);
   plugin_tonesrc_init (NULL);
 
-  recalculate_scale (CALIB_DEFAULT);
 
   /* Init the gtk - must be called before any hildon stuff */
   gtk_init (&argc, &argv);
@@ -667,6 +713,11 @@ main (int argc, char *argv[])
   if (osso_hw_set_event_cb (appdata->osso_context, &hw_state_mask, osso_hw_state_cb, appdata) != OSSO_OK)
     g_warning ("setting osso_hw_state_cb failed!");
 
+  settings_init (&settings_notify, appdata);
+
+  calib = settings_get_calibration (CALIB_DEFAULT);
+  recalculate_scale (calib);
+
   mainBox = gtk_vbox_new (FALSE, 0);
   gtk_container_set_border_width (GTK_CONTAINER (mainBox), 0);
 #if defined(MAEMO1)
@@ -694,15 +745,18 @@ main (int argc, char *argv[])
   appdata->bin1 = gst_pipeline_new ("bin1");
 
   src1 = gst_element_factory_make (DEFAULT_AUDIOSRC, "src1");
-  pitch = gst_element_factory_make ("pitch", "pitch");
-  g_object_set (G_OBJECT (pitch), "message", TRUE, "minfreq", 10,
-      "maxfreq", 4000, NULL);
+  appdata->pitch = gst_element_factory_make ("pitch", "pitch");
+
+  g_object_set (G_OBJECT (appdata->pitch), "message", TRUE, "minfreq", 10,
+      "maxfreq", 4000, 
+      "algorithm", settings_get_algorithm (GST_PITCH_ALGORITHM_FFT),
+      NULL);
 
   sink1 = gst_element_factory_make ("fakesink", "sink1");
   g_object_set (G_OBJECT (sink1), "silent", 1, NULL);
 
-  gst_bin_add_many (GST_BIN (appdata->bin1), src1, pitch, sink1, NULL);
-  if (!gst_element_link_many (src1, pitch, sink1, NULL)) {
+  gst_bin_add_many (GST_BIN (appdata->bin1), src1, appdata->pitch, sink1, NULL);
+  if (!gst_element_link_many (src1, appdata->pitch, sink1, NULL)) {
     fprintf (stderr, "cant link elements\n");
     exit (1);
   }
@@ -755,7 +809,7 @@ main (int argc, char *argv[])
 #ifdef HILDON
   calibrate = hildon_number_editor_new (CALIB_MIN, CALIB_MAX);
   hildon_number_editor_set_value (HILDON_NUMBER_EDITOR (calibrate),
-      CALIB_DEFAULT);
+      calib);
   /* we don't want that ugly cursor there */
   gtk_container_forall (GTK_CONTAINER (calibrate),
       (GtkCallback) fix_hildon_number_editor, NULL);
@@ -763,7 +817,7 @@ main (int argc, char *argv[])
       G_CALLBACK (calibration_changed), NULL);
 #else
   calibrate = gtk_spin_button_new_with_range (CALIB_MIN, CALIB_MAX, 1);
-  gtk_spin_button_set_value (GTK_SPIN_BUTTON (calibrate), CALIB_DEFAULT);
+  gtk_spin_button_set_value (GTK_SPIN_BUTTON (calibrate), calib);
   g_signal_connect (G_OBJECT (calibrate), "value_changed",
       G_CALLBACK (calibration_changed), NULL);
 #endif
@@ -816,8 +870,15 @@ main (int argc, char *argv[])
   gtk_widget_show_all (GTK_WIDGET (mainWin));
 #endif
 
+#if HILDON == 1
+  appdata->display_keepalive = settings_get_display_keepalive (TRUE);
+
+  if (appdata->display_keepalive)
+    display_keepalive (appdata);
+#endif
+
   set_pipeline_states (appdata, GST_STATE_PLAYING);
-  display_keepalive (appdata);
+
   gtk_main ();
   set_pipeline_states (appdata, GST_STATE_NULL);
 

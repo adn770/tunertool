@@ -379,7 +379,9 @@ gst_pitch_message_new (GstPitch * filter)
       break;
   }
 
+  /*
   g_debug("freq %d[%d]\n", frequency, frequency_module);
+  */
   GST_DEBUG_OBJECT (filter, "preparing message, frequency = %d ", frequency);
 
   s = gst_structure_new ("pitch", "frequency", G_TYPE_INT, frequency, NULL);

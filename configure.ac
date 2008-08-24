@@ -189,6 +189,21 @@ AC_SUBST(GTK_CFLAGS)
 AC_SUBST(HAVE_GTK)
 AM_CONDITIONAL(HAVE_GTK, test "x$HAVE_GTK" = "xyes")
 
+dnl If we need them, we can also use the gstreamer-controller libraries
+PKG_CHECK_MODULES(GCONF,
+                  gconf-2.0,
+                  HAVE_GCONF=yes, HAVE_GCONF=no)
+
+dnl Give a warning if we don't have gstreamer-controller
+dnl you can turn this into an error if you need them
+if test "x$HAVE_GCONF" = "xno"; then
+  AC_MSG_ERROR(no GConf libraries found)
+fi
+
+dnl make _CFLAGS and _LIBS available
+AC_SUBST(GCONF_CFLAGS)
+AC_SUBST(GCONFL_LIBS)
+
 dnl set the plugindir where plugins should be installed
 if test "x${prefix}" = "x$HOME"; then
   plugindir="$HOME/.gstreamer-$GST_MAJORMINOR/plugins"

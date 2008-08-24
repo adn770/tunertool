@@ -2,7 +2,7 @@ Source: tuner
 Section: user/tools
 Priority: optional
 Maintainer: Josep Torra <jtorra@uoc.edu>
-Build-Depends: debhelper (>= 4.0.0), libhildon1-dev | hildon-libs-dev, libgtk2.0-dev, libgstreamer0.10-dev, libgstreamer-plugins-base0.10-dev, libosso-dev (>= 1)
+Build-Depends: debhelper (>= 4.0.0), libhildon1-dev | hildon-libs-dev, libgtk2.0-dev, libgstreamer0.10-dev, libgstreamer-plugins-base0.10-dev, libosso-dev (>= 1), libgconf2-dev
 Standards-Version: 3.6.0
 
 Package: tuner
