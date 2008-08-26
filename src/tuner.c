@@ -103,12 +103,7 @@ enum
   NUM_NOTES = 96
 };
 
-enum
-{
-  CALIB_MIN = 430,
-  CALIB_MAX = 450,
-  CALIB_DEFAULT = 440
-};
+
 
 #define NUM_LEDS (66)
 #define NUM_WKEYS (15) /* # of white keys in the piano keyboard */
@@ -227,17 +222,6 @@ recalculate_scale (double a4)
     /* fprintf(stdout, "%s: %.2f\n", equal_tempered_scale[i].name, equal_tempered_scale[i].frequency); */
   }
 }
-
-#ifdef HILDON
-static void
-fix_hildon_number_editor (GtkWidget * widget, gpointer data)
-{
-  if (GTK_IS_EDITABLE (widget)) {
-    gtk_editable_set_editable (GTK_EDITABLE (widget), FALSE);
-    g_object_set (G_OBJECT (widget), "can-focus", FALSE, NULL);
-  }
-}
-#endif
 
 static void
 calibration_changed (GObject * object, GParamSpec * pspec, gpointer user_data)
@@ -641,6 +625,18 @@ settings_notify (GConfClient * client, guint cnxn_id, GConfEntry * entry, gpoint
   }
 }
 
+static void 
+settings_activate (GtkWidget * widget, GtkWidget * main_win)
+{
+  settings_dialog_show (GTK_WINDOW (main_win));
+}
+
+static void 
+close_activate (GtkWidget * widget, gpointer data)
+{
+  gtk_main_quit ();
+}
+
 int
 main (int argc, char *argv[])
 {
@@ -668,6 +664,8 @@ main (int argc, char *argv[])
   GtkWidget *alignment;
   GtkWidget *calibrate;
   GtkWidget *sep;
+  GtkWidget *menu;
+  GtkWidget *menuitem;
 
 #ifndef HILDON
   GdkPixbuf *icon = NULL;
@@ -728,6 +726,22 @@ main (int argc, char *argv[])
   view = HILDON_WINDOW (hildon_window_new ());
   mainWin = GTK_WIDGET (view);
   g_signal_connect (G_OBJECT (app), "notify::is-topmost", G_CALLBACK (topmost_notify), appdata);
+
+  menu = gtk_menu_new ();
+  hildon_window_set_menu (HILDON_WINDOW (view), GTK_MENU (menu));
+
+  menuitem = gtk_menu_item_new_with_label ("Settings...");
+  gtk_menu_append (GTK_MENU (menu), menuitem);
+  g_signal_connect (G_OBJECT (menuitem), "activate",
+      GTK_SIGNAL_FUNC (settings_activate), mainWin);
+
+  menuitem = gtk_menu_item_new_with_label ("Close");
+  gtk_menu_append (GTK_MENU (menu), menuitem);
+  g_signal_connect (G_OBJECT (menuitem), "activate",
+      GTK_SIGNAL_FUNC (close_activate), mainWin);
+
+  gtk_widget_show_all (menu);
+
 #endif
 #else
   mainWin = gtk_window_new (GTK_WINDOW_TOPLEVEL);
@@ -749,7 +763,7 @@ main (int argc, char *argv[])
 
   g_object_set (G_OBJECT (appdata->pitch), "message", TRUE, "minfreq", 10,
       "maxfreq", 4000, 
-      "algorithm", settings_get_algorithm (GST_PITCH_ALGORITHM_FFT),
+      "algorithm", settings_get_algorithm (DEFAULT_ALGORITHM),
       NULL);
 
   sink1 = gst_element_factory_make ("fakesink", "sink1");
@@ -785,7 +799,7 @@ main (int argc, char *argv[])
   g_signal_connect (G_OBJECT (mainWin), "destroy",
       G_CALLBACK (on_window_destroy), NULL);
   g_signal_connect (G_OBJECT(mainWin), "key_press_event", 
-      G_CALLBACK(key_press_event), mainWin);
+      G_CALLBACK (key_press_event), mainWin);
 
   /* Note label */
   appdata->targetFrequency = gtk_label_new ("");
@@ -807,12 +821,9 @@ main (int argc, char *argv[])
   gtk_box_pack_start (GTK_BOX (box), label, FALSE, FALSE, 5);
 
 #ifdef HILDON
-  calibrate = hildon_number_editor_new (CALIB_MIN, CALIB_MAX);
+  calibrate = calibration_editor_new (CALIB_MIN, CALIB_MAX);
   hildon_number_editor_set_value (HILDON_NUMBER_EDITOR (calibrate),
       calib);
-  /* we don't want that ugly cursor there */
-  gtk_container_forall (GTK_CONTAINER (calibrate),
-      (GtkCallback) fix_hildon_number_editor, NULL);
   g_signal_connect (G_OBJECT (calibrate), "notify::value",
       G_CALLBACK (calibration_changed), NULL);
 #else
@@ -871,7 +882,7 @@ main (int argc, char *argv[])
 #endif
 
 #if HILDON == 1
-  appdata->display_keepalive = settings_get_display_keepalive (TRUE);
+  appdata->display_keepalive = settings_get_display_keepalive (DEFAULT_DISPLAY_KEEPALIVE);
 
   if (appdata->display_keepalive)
     display_keepalive (appdata);

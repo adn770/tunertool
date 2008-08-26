@@ -21,6 +21,7 @@
 #ifndef __SETTINGS_H__
 #define __SETTINGS_H__
 
+#include <gtk/gtkwindow.h>
 #include <gconf/gconf-client.h>
 
 #define GCONF_ROOT "/apps/tuner"
@@ -28,11 +29,25 @@
 #define GCONF_KEY_CALIBRATION GCONF_ROOT "/calibration"
 #define GCONF_KEY_DISPLAY_KEEPALIVE GCONF_ROOT "/display_keepalive"
 
+#define DEFAULT_ALGORITHM (0) /* GST_PITCH_ALGORITHM_FFT */
+#define DEFAULT_DISPLAY_KEEPALIVE TRUE
+
+enum
+{
+  CALIB_MIN = 430,
+  CALIB_MAX = 450,
+  CALIB_DEFAULT = 440
+};
+
 gint settings_get_algorithm (gint default_value);
 gint settings_get_calibration (gint default_value);
 gboolean settings_set_calibration (gint value);
 gboolean settings_get_display_keepalive (gboolean default_value);
 gboolean settings_init (GConfClientNotifyFunc func, gpointer user_data);
+#if HILDON == 1
+void settings_dialog_show (GtkWindow * parent);
+GtkWidget * calibration_editor_new (gint min, gint max);
+#endif
 
 #endif /* __SETTINGS_H__ */
 

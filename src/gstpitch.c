@@ -171,7 +171,8 @@ static void
 gst_pitch_setup_algorithm (GstPitch * filter)
 {
   if (filter->algorithm == GST_PITCH_ALGORITHM_HPS) {
-    filter->module = (gint *) g_malloc (RATE * sizeof (gint));
+    if (NULL == filter->module)
+      filter->module = (gint *) g_malloc (RATE * sizeof (gint));
   }
   else {
     if (filter->module) 

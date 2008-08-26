@@ -1,17 +1,28 @@
+2008-08-26  Jari Tenhunen  <jari.tenhunen@iki.fi>
+
+	* src/settings.c src/settings.h src/tuner.c:
+	Added settings dialog
+	* src/gstpitch.c (gst_pitch_setup_algorithm): 
+	Fixed a simple leak 
+
 2008-08-24  Jari Tenhunen  <jari.tenhunen@iki.fi>
+
 	* src/tuner.c src/settings.h src/settings.c
 	src/Makefile.am configure.ac debian/control:
 	GConf backend for settings
 
 2008-08-20  Jari Tenhunen  <jari.tenhunen@iki.fi>
+
 	* src/tuner64.png src/tuner26.png:
 	Slightly reworked, transparent icons
 
 2008-08-18  Jari Tenhunen  <jari.tenhunen@iki.fi>
+
 	* src/gstpitch.h src/gstpitch.c:
 	Added Harmonic Product Spectrum algorithm and "algorithm" property.
 
 2008-08-08  Jari Tenhunen  <jari.tenhunen@iki.fi>
+
 	* src/tuner.c (main, stop_pipelines, osso_hw_state_cb,
 	set_pipeline_states, topmost_notify):
 	better power management: DSP will now sleep when display dims 
@@ -22,11 +33,13 @@
 	window is on foreground
 
 2008-08-06  Jari Tenhunen  <jari.tenhunen@iki.fi>
+
 	* src/tuner.c (main, window_is_active_notify):
 	pause pipelines when the application window is inactive,
 	should reduce energy consumption
 
 2008-08-03  Jari Tenhunen  <jari.tenhunen@iki.fi>
+
 	* src/tuner.c (key_press_event, key_release_event):
 	renamed to button_*_event
 	(toggle_fullscreen, key_press_event, main):
