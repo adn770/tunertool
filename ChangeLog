@@ -1,3 +1,8 @@
+2008-08-30  Jari Tenhunen  <jari.tenhunen@iki.fi>
+
+	* debian/control: New icon also for debian
+	package
+
 2008-08-26  Jari Tenhunen  <jari.tenhunen@iki.fi>
 
 	* src/settings.c src/settings.h src/tuner.c:
