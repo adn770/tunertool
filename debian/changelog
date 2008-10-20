@@ -1,10 +1,15 @@
-tuner (0.0.5) UNRELEASED; urgency=low
+tuner (0.1.0) unstable; urgency=low
 
-  * fixed build-dependencies
-  * fix rules to build on x86 as well
-  * src/gstpitch.c: memory leak fixed
+  * added new icons.
+  * added a settings dialog with a GConf backend.
+  * Harmonic Product Spectrum algorithm added.
+  * support fullscreen mode.
+  * better power saving features.
+  * fixed build-dependencies.
+  * fix rules to build on x86 as well.
+  * src/gstpitch.c: memory leak fixed.
 
- -- Jari Tenhunen <jari.tenhunen@iki.fi>  Tue, 29 Jul 2008 20:02:30 +0300
+ -- Jari Tenhunen <jari.tenhunen@iki.fi>  Mon, 20 Oct 2008 20:12:58 +0300
 
 tuner (0.0.4) unstable; urgency=low
 
