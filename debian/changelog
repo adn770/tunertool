@@ -1,3 +1,9 @@
+tuner (0.1.1) unstable; urgency=low
+
+  * Changes for fremantle
+
+ -- Jari Tenhunen <jari.tenhunen@iki.fi>  Sat,  5 Sep 2009 14:07:53 +0300
+
 tuner (0.1.0) unstable; urgency=low
 
   * added new icons.

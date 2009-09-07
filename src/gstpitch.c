@@ -30,7 +30,8 @@
 GST_DEBUG_CATEGORY_STATIC (gst_pitch_debug);
 #define GST_CAT_DEFAULT gst_pitch_debug
 
-#define RATE    8000
+#define RATE    32000
+#define RATESTR "32000"
 #define WANTED  RATE * 2
 
 /* Filter signals and args */
@@ -49,7 +50,7 @@ static GstStaticPadTemplate sink_template = GST_STATIC_PAD_TEMPLATE ("sink",
     GST_PAD_SINK,
     GST_PAD_ALWAYS,
     GST_STATIC_CAPS ("audio/x-raw-int, "
-        "rate = (int) 8000, "
+        "rate = (int) " RATESTR ", "
         "channels = (int) 1, "
         "endianness = (int) BYTE_ORDER, "
         "width = (int) 16, " "depth = (int) 16, " "signed = (boolean) true")

@@ -26,16 +26,9 @@
 #define TUNER_VERSION "0.4"
 
 #ifdef HILDON
-#  if HILDON==1
-#    include <hildon/hildon-defines.h>
-#    include <hildon/hildon-program.h>
-#    include <hildon/hildon-number-editor.h>
-#  elif defined(MAEMO1)
-#    include <hildon-widgets/hildon-app.h>
-#    include <hildon-widgets/hildon-appview.h>
-#  else
-#    include <hildon-widgets/hildon-program.h>
-#  endif
+#include <hildon/hildon-defines.h>
+#include <hildon/hildon-program.h>
+#include <hildon/hildon-number-editor.h>
 
 #include <libosso.h>
 
@@ -45,8 +38,8 @@
 #endif /* ifdef HILDON */
 
 #ifdef MAEMO
-# define DEFAULT_AUDIOSRC "dsppcmsrc"
-# define DEFAULT_AUDIOSINK "dsppcmsink"
+# define DEFAULT_AUDIOSRC "pulsesrc"
+# define DEFAULT_AUDIOSINK "pulsesink"
 #else
 # define DEFAULT_AUDIOSRC "alsasrc"
 # define DEFAULT_AUDIOSINK "alsasink"
@@ -87,6 +80,8 @@ struct app_data
   GstElement *tonesrc;
   GstElement *pitch;
   guint stop_timer_id;
+  guint vol_timer_id;
+  gdouble target_vol;
 
   gboolean display_keepalive;
 #ifdef MAEMO
@@ -211,6 +206,8 @@ static Note equal_tempered_scale[] = {
 static GdkColor ledOnColor = { 0, 0 * 255, 180 * 255, 95 * 255 };
 static GdkColor ledOnColor2 = { 0, 180 * 255, 180 * 255, 0 * 255 };
 static GdkColor ledOffColor = { 0, 80 * 255, 80 * 255, 80 * 255 };
+static GdkColor whiteColor = { 0, 65535, 65535, 65535 };
+static GdkColor blackColor = { 0, 0, 0, 0 };
 
 static void
 recalculate_scale (double a4)
@@ -370,7 +367,8 @@ message_handler (GstBus * bus, GstMessage * message, gpointer data)
       gint frequency;
 
       frequency = g_value_get_int (gst_structure_get_value (s, "frequency"));
-      update_frequency (data, frequency);
+      if (frequency != 0)
+        update_frequency (data, frequency);
     }
   }
   /* we handled the message we want, and ignored the ones we didn't want.
@@ -418,8 +416,11 @@ expose_event (GtkWidget * widget, GdkEventExpose * event, gpointer user_data)
   if (!gc) {
     gc = gdk_gc_new (appdata->drawingarea2->window);
   }
-  gdk_gc_set_rgb_fg_color (gc, &appdata->drawingarea2->style->fg[0]);
+  gdk_gc_set_rgb_fg_color (gc, &whiteColor);
+  gdk_draw_rectangle (appdata->drawingarea2->window, gc, TRUE, 0, 0,
+      NUM_WKEYS * WKEY_WIDTH, appdata->drawingarea2->allocation.height - 1);
 
+  gdk_gc_set_rgb_fg_color (gc, &blackColor);
   gdk_draw_rectangle (appdata->drawingarea2->window, gc, FALSE, 0, 0,
       NUM_WKEYS * WKEY_WIDTH, appdata->drawingarea2->allocation.height - 1);
 
@@ -482,6 +483,16 @@ stop_pipelines (gpointer user_data)
   appdata->stop_timer_id = 0;
 
   return FALSE;
+}
+
+static gboolean
+fake_frequency (gpointer user_data)
+{
+  AppData * appdata = (AppData *) user_data;
+
+  update_frequency (appdata, 440);
+
+  return TRUE;
 }
 
 #ifdef MAEMO
@@ -632,9 +643,55 @@ settings_activate (GtkWidget * widget, GtkWidget * main_win)
 }
 
 static void 
-close_activate (GtkWidget * widget, gpointer data)
+about_activate (GtkWidget * widget, GtkWindow * main_win)
 {
-  gtk_main_quit ();
+  GtkWidget *vbox;
+  GtkWidget *label;
+  GtkWidget *dialog;
+ 
+  dialog = gtk_dialog_new_with_buttons("About tuner", main_win,
+      GTK_DIALOG_MODAL | 
+      GTK_DIALOG_DESTROY_WITH_PARENT |
+      GTK_DIALOG_NO_SEPARATOR,
+      NULL, NULL);
+
+  g_signal_connect (G_OBJECT (dialog), "delete_event", G_CALLBACK (gtk_widget_destroy), NULL);
+
+  vbox = gtk_vbox_new (FALSE, HILDON_MARGIN_DEFAULT);
+  gtk_container_set_border_width (GTK_CONTAINER (vbox), HILDON_MARGIN_DEFAULT);
+  gtk_container_add (GTK_CONTAINER (GTK_DIALOG (dialog)->vbox), vbox);
+  label = gtk_label_new ("Tuner Tool is developed by Josep Torra and Jari Tenhunen.\n"
+      "http://n770galaxy.blogspot.com/\n");
+  gtk_box_pack_start (GTK_BOX (vbox), label, FALSE, FALSE, 5);
+
+  gtk_widget_show_all (dialog);
+  gtk_dialog_run (GTK_DIALOG (dialog));
+
+  gtk_widget_destroy (dialog);
+}
+
+static HildonAppMenu *
+create_menu (GtkWidget *parent)
+{
+  HildonSizeType button_size = HILDON_SIZE_FINGER_HEIGHT | HILDON_SIZE_AUTO_WIDTH;
+  HildonAppMenu *menu = HILDON_APP_MENU (hildon_app_menu_new ());
+  GtkButton *button;
+
+  button = GTK_BUTTON (hildon_gtk_button_new (button_size));
+  gtk_button_set_label (button, "Settings");
+  g_signal_connect_after (G_OBJECT (button), "clicked",
+      G_CALLBACK (settings_activate), parent);
+  hildon_app_menu_append (menu, button);
+
+  button = GTK_BUTTON (hildon_gtk_button_new (button_size));
+  gtk_button_set_label (button, "About");
+  g_signal_connect_after (G_OBJECT (button), "clicked",
+      G_CALLBACK (about_activate), parent);
+  hildon_app_menu_append (menu, button);
+
+  gtk_widget_show_all (GTK_WIDGET (menu));
+
+  return menu;
 }
 
 int
@@ -642,13 +699,7 @@ main (int argc, char *argv[])
 {
   AppData * appdata = NULL;
 #ifdef HILDON
-#if defined(MAEMO1)
-  HildonApp *app = NULL;
-  HildonAppView *view = NULL;
-#else
   HildonProgram *app = NULL;
-  HildonWindow *view = NULL;
-#endif
   osso_hw_state_t hw_state_mask = { TRUE, FALSE, FALSE, TRUE, 0 };
 #endif
   gint calib;
@@ -664,8 +715,7 @@ main (int argc, char *argv[])
   GtkWidget *alignment;
   GtkWidget *calibrate;
   GtkWidget *sep;
-  GtkWidget *menu;
-  GtkWidget *menuitem;
+  HildonAppMenu *menu;
 
 #ifndef HILDON
   GdkPixbuf *icon = NULL;
@@ -685,16 +735,8 @@ main (int argc, char *argv[])
   /* Init the gtk - must be called before any hildon stuff */
   gtk_init (&argc, &argv);
 
-#ifdef HILDON
-#if defined(MAEMO1)
-  /* Create the hildon application and setup the title */
-  app = HILDON_APP (hildon_app_new ());
-  hildon_app_set_title (app, "Tuner Tool");
-  hildon_app_set_two_part_title (app, TRUE);
-#else
   app = HILDON_PROGRAM (hildon_program_get_instance ());
   g_set_application_name ("Tuner Tool");
-#endif
 
   appdata->app = app;
 
@@ -718,47 +760,18 @@ main (int argc, char *argv[])
 
   mainBox = gtk_vbox_new (FALSE, 0);
   gtk_container_set_border_width (GTK_CONTAINER (mainBox), 0);
-#if defined(MAEMO1)
-  view = HILDON_APPVIEW (hildon_appview_new ("Tuner"));
-  hildon_appview_set_fullscreen_key_allowed (view, TRUE);
-  mainWin = GTK_WIDGET (app);
-#else
-  view = HILDON_WINDOW (hildon_window_new ());
-  mainWin = GTK_WIDGET (view);
+  mainWin = hildon_stackable_window_new ();
   g_signal_connect (G_OBJECT (app), "notify::is-topmost", G_CALLBACK (topmost_notify), appdata);
 
-  menu = gtk_menu_new ();
-  hildon_window_set_menu (HILDON_WINDOW (view), GTK_MENU (menu));
-
-  menuitem = gtk_menu_item_new_with_label ("Settings...");
-  gtk_menu_append (GTK_MENU (menu), menuitem);
-  g_signal_connect (G_OBJECT (menuitem), "activate",
-      GTK_SIGNAL_FUNC (settings_activate), mainWin);
-
-  menuitem = gtk_menu_item_new_with_label ("Close");
-  gtk_menu_append (GTK_MENU (menu), menuitem);
-  g_signal_connect (G_OBJECT (menuitem), "activate",
-      GTK_SIGNAL_FUNC (close_activate), mainWin);
-
-  gtk_widget_show_all (menu);
-
-#endif
-#else
-  mainWin = gtk_window_new (GTK_WINDOW_TOPLEVEL);
-  gtk_window_set_title (GTK_WINDOW (mainWin), "Tuner " TUNER_VERSION);
-  icon = gdk_pixbuf_new_from_file ("tuner64.png", &error);
-  if (icon != NULL) {
-    g_print ("Setting icon\n");
-    gtk_window_set_icon (GTK_WINDOW (mainWin), icon);
-  }
-  mainBox = gtk_vbox_new (FALSE, 0);
-  gtk_container_set_border_width (GTK_CONTAINER (mainBox), 0);
-#endif
+  menu = create_menu (mainWin);
+  hildon_program_set_common_app_menu (app, menu);
 
   /* Bin for tuner functionality */
   appdata->bin1 = gst_pipeline_new ("bin1");
 
   src1 = gst_element_factory_make (DEFAULT_AUDIOSRC, "src1");
+  g_object_set (G_OBJECT (src1), "device", "source.voice.raw", NULL);
+
   appdata->pitch = gst_element_factory_make ("pitch", "pitch");
 
   g_object_set (G_OBJECT (appdata->pitch), "message", TRUE, "minfreq", 10,
@@ -838,13 +851,7 @@ main (int argc, char *argv[])
 
   /* Separator */
   sep = gtk_hseparator_new ();
-
-  /* Credits */
   gtk_box_pack_start (GTK_BOX (mainBox), sep, FALSE, FALSE, 5);
-
-  label = gtk_label_new ("Tuner Tool developed by Josep Torra.\n"
-      "http://n770galaxy.blogspot.com/");
-  gtk_box_pack_start (GTK_BOX (mainBox), label, FALSE, FALSE, 5);
 
   /* Piano keyboard */
   alignment = gtk_alignment_new (0.5, 0.5, 0, 0);
@@ -867,30 +874,22 @@ main (int argc, char *argv[])
   } else {
     gtk_widget_set_events (appdata->drawingarea2, GDK_EXPOSURE_MASK);
   }
-#ifdef HILDON
-  gtk_container_add (GTK_CONTAINER (view), mainBox);
-#if defined(MAEMO1)
-  hildon_app_set_appview (app, view);
-  gtk_widget_show_all (GTK_WIDGET (app));
-#else
-  hildon_program_add_window (app, view);
-  gtk_widget_show_all (GTK_WIDGET (view));
-#endif
-#else
-  gtk_container_add (GTK_CONTAINER (mainWin), mainBox);
-  gtk_widget_show_all (GTK_WIDGET (mainWin));
-#endif
 
-#if HILDON == 1
+  gtk_container_add (GTK_CONTAINER (mainWin), mainBox);
+  hildon_program_add_window (app, HILDON_WINDOW (mainWin));
+  gtk_widget_show_all (GTK_WIDGET (mainWin));
+
   appdata->display_keepalive = settings_get_display_keepalive (DEFAULT_DISPLAY_KEEPALIVE);
 
   if (appdata->display_keepalive)
     display_keepalive (appdata);
-#endif
 
   set_pipeline_states (appdata, GST_STATE_PLAYING);
 
+  //g_timeout_add (2000, (GSourceFunc) fake_frequency, appdata);
+
   gtk_main ();
+
   set_pipeline_states (appdata, GST_STATE_NULL);
 
   gst_object_unref (appdata->bin1);

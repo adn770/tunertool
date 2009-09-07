@@ -27,16 +27,16 @@ noinst_HEADERS = gstpitch.h gsttonesrc.h kiss_fft.h _kiss_fft_guts.h settings.h
 EXTRA_DIST = tuner26.png  tuner40.png  tuner64.png
 
 if HAVE_GTK
-noinst_PROGRAMS = demo-audiotest demo-tuner tuner
+noinst_PROGRAMS = tuner
 endif
 
-demo_audiotest_SOURCES = demo-audiotest.c
-demo_audiotest_CFLAGS  = $(GST_CFLAGS) $(GTK_CFLAGS) 
-demo_audiotest_LDFLAGS = $(GST_LIBS) $(GTK_LIBS)
+#demo_audiotest_SOURCES = demo-audiotest.c
+#demo_audiotest_CFLAGS  = $(GST_CFLAGS) $(GTK_CFLAGS) 
+#demo_audiotest_LDFLAGS = $(GST_LIBS) $(GTK_LIBS)
 
-demo_tuner_SOURCES = demo-tuner.c
-demo_tuner_CFLAGS  = $(GST_CFLAGS) $(GTK_CFLAGS) 
-demo_tuner_LDFLAGS = $(GST_LIBS) $(GTK_LIBS)
+#demo_tuner_SOURCES = demo-tuner.c
+#demo_tuner_CFLAGS  = $(GST_CFLAGS) $(GTK_CFLAGS) 
+#demo_tuner_LDFLAGS = $(GST_LIBS) $(GTK_LIBS)
 
 tuner_SOURCES = tuner.c settings.c
 tuner_DEPENDENCIES = $(top_builddir)/src/libgstpitch.la $(top_builddir)/src/libgsttonesrc.la

@@ -1,14 +1,6 @@
 #! /bin/sh
 gtk-update-icon-cache -f /usr/share/icons/hicolor
 
-# Now we are ready to let the user move the entry around, but only if
-# this is a new install
-
-oldversion="$2"
-if [ -z "$oldversion" ]; then
-  maemo-select-menu-location tuner.desktop
-fi
-
 #DEBHELPER#
 
 exit 0

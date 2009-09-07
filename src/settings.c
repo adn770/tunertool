@@ -1,6 +1,6 @@
 /* vim: set sts=2 sw=2 et: */
 /* 
- * Copyright (C) 2008 Jari Tenhunen <jari.tenhunen@iki.fi>
+ * Copyright (C) 2008-2009 Jari Tenhunen <jari.tenhunen@iki.fi>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -23,11 +23,10 @@
 #endif
 
 #include <gtk/gtk.h>
-#if HILDON == 1
 #include <hildon/hildon-caption.h>
 #include <hildon/hildon-defines.h>
 #include <hildon/hildon-number-editor.h>
-#endif
+#include <hildon/hildon.h>
 
 #include "settings.h"
 
@@ -131,7 +130,6 @@ settings_init (GConfClientNotifyFunc func, gpointer user_data)
   return TRUE;
 }
 
-#if HILDON == 1
 static void
 fix_hildon_number_editor (GtkWidget * widget, gpointer data)
 {
@@ -159,11 +157,8 @@ settings_dialog_show (GtkWindow * parent)
 {
   GtkWidget *dialog;
   GtkWidget *vbox;
-  GtkWidget *caption;
-  GtkSizeGroup *group;
   GtkWidget *editor = NULL;
   GtkWidget *control;
-  GtkComboBox *combo;
   gint res;
 
   dialog = gtk_dialog_new_with_buttons("Settings",
@@ -171,7 +166,7 @@ settings_dialog_show (GtkWindow * parent)
       GTK_DIALOG_MODAL | 
       GTK_DIALOG_DESTROY_WITH_PARENT | 
       GTK_DIALOG_NO_SEPARATOR,
-      "OK", GTK_RESPONSE_OK,
+      "Save", GTK_RESPONSE_OK,
       "Cancel",
       GTK_RESPONSE_CANCEL,
       NULL, NULL);
@@ -182,15 +177,17 @@ settings_dialog_show (GtkWindow * parent)
   gtk_container_set_border_width (GTK_CONTAINER (vbox), HILDON_MARGIN_DEFAULT);
   gtk_container_add (GTK_CONTAINER (GTK_DIALOG (dialog)->vbox), vbox);
 
-  group = GTK_SIZE_GROUP (gtk_size_group_new (GTK_SIZE_GROUP_HORIZONTAL));
-
-  combo = GTK_COMBO_BOX (gtk_combo_box_new_text ());
-  gtk_combo_box_append_text (combo, "Simple FFT");
-  gtk_combo_box_append_text (combo, "Harmonic Product Spectrum");
-  gtk_combo_box_set_active (combo, settings_get_algorithm (DEFAULT_ALGORITHM));
-  caption = hildon_caption_new (group, "Pitch detection algorithm:",
-      GTK_WIDGET (combo), NULL, HILDON_CAPTION_OPTIONAL);
-  gtk_box_pack_start (GTK_BOX (vbox), caption, FALSE, FALSE, 0);
+  HildonPickerButton *picker = HILDON_PICKER_BUTTON (hildon_picker_button_new (
+        HILDON_SIZE_FINGER_HEIGHT | HILDON_SIZE_HALFSCREEN_WIDTH, 
+        HILDON_BUTTON_ARRANGEMENT_VERTICAL));
+  hildon_button_set_title (HILDON_BUTTON (picker), "Pitch detection algorithm");
+  HildonTouchSelector *selector = HILDON_TOUCH_SELECTOR (hildon_touch_selector_new_text());
+  hildon_picker_button_set_selector (picker, selector);
+  hildon_touch_selector_append_text (selector, "Simple FFT");
+  hildon_touch_selector_append_text (selector, "Harmonic Product Spectrum");
+  hildon_picker_button_set_active (picker, settings_get_algorithm (DEFAULT_ALGORITHM));
+  
+  gtk_box_pack_start (GTK_BOX (vbox), GTK_WIDGET (picker), FALSE, FALSE, 0);
 #if 0
   editor = calibration_editor_new (CALIB_MIN, CALIB_MAX);
   hildon_number_editor_set_value (HILDON_NUMBER_EDITOR (editor), CALIB_DEFAULT);
@@ -199,29 +196,27 @@ settings_dialog_show (GtkWindow * parent)
   gtk_box_pack_start (GTK_BOX (vbox), caption, FALSE, FALSE, 0);
 #endif
 
-  control = gtk_check_button_new ();
-  caption = hildon_caption_new (group, "Keep display on:",
-      control, NULL, HILDON_CAPTION_OPTIONAL);
-  gtk_toggle_button_set_active (GTK_TOGGLE_BUTTON (control), 
+  control = hildon_check_button_new (HILDON_SIZE_FINGER_HEIGHT | HILDON_SIZE_HALFSCREEN_WIDTH | HILDON_BUTTON_ARRANGEMENT_VERTICAL);
+  gtk_button_set_label (GTK_BUTTON (control), "Keep display on");
+  hildon_check_button_set_active (HILDON_CHECK_BUTTON (control), 
       settings_get_display_keepalive (DEFAULT_DISPLAY_KEEPALIVE));
-  gtk_box_pack_start (GTK_BOX (vbox), caption, FALSE, FALSE, 0);
+  gtk_box_pack_start (GTK_BOX (vbox), control, FALSE, FALSE, 0);
 
   gtk_widget_show_all (dialog);
   res = gtk_dialog_run (GTK_DIALOG (dialog));
 
   if (res == GTK_RESPONSE_OK) {
     /* save settings */
-    g_debug ("algorithm: %d", gtk_combo_box_get_active (combo));
-    settings_set_algorithm (gtk_combo_box_get_active (combo));
+    g_debug ("algorithm: %d", hildon_picker_button_get_active (picker));
+    settings_set_algorithm (hildon_picker_button_get_active (picker));
     if (editor) {
       g_debug ("calib: %d", hildon_number_editor_get_value (HILDON_NUMBER_EDITOR (editor)));
       settings_set_calibration (hildon_number_editor_get_value (HILDON_NUMBER_EDITOR (editor)));
     }
-    g_debug ("keepalive: %d", gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (control)));
-    settings_set_display_keepalive (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (control)));
+    g_debug ("keepalive: %d", hildon_check_button_get_active (HILDON_CHECK_BUTTON (control)));
+    settings_set_display_keepalive (hildon_check_button_get_active (HILDON_CHECK_BUTTON (control)));
   }
 
   gtk_widget_destroy (dialog);
 }
-#endif
 
