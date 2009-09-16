@@ -33,6 +33,8 @@ GST_DEBUG_CATEGORY_STATIC (gst_pitch_debug);
 #define RATE    32000
 #define RATESTR "32000"
 #define WANTED  RATE * 2
+#define ZERO_PADDING_FACTOR 2
+#define FFT_LEN (RATE * ZERO_PADDING_FACTOR)
 
 /* Filter signals and args */
 enum
@@ -174,7 +176,7 @@ gst_pitch_setup_algorithm (GstPitch * filter, GstPitchAlgorithm algorithm)
   g_mutex_lock (filter->mutex);
   if (algorithm == GST_PITCH_ALGORITHM_HPS) {
     if (NULL == filter->module)
-      filter->module = (gint *) g_malloc (RATE * sizeof (gint));
+      filter->module = (gint *) g_malloc (FFT_LEN * sizeof (gint));
   }
   else {
     if (filter->module) 
@@ -277,11 +279,11 @@ gst_pitch_set_caps (GstBaseTransform * trans, GstCaps * in, GstCaps * out)
 {
   GstPitch *filter = GST_PITCH (trans);
 
-  filter->fft_cfg = kiss_fft_alloc (RATE, 0, NULL, NULL);
+  filter->fft_cfg = kiss_fft_alloc (FFT_LEN, 0, NULL, NULL);
   filter->signal =
-      (kiss_fft_cpx *) g_malloc (RATE * sizeof (kiss_fft_cpx));
+      (kiss_fft_cpx *) g_malloc0 (FFT_LEN * sizeof (kiss_fft_cpx));
   filter->spectrum =
-      (kiss_fft_cpx *) g_malloc (RATE * sizeof (kiss_fft_cpx));
+      (kiss_fft_cpx *) g_malloc (FFT_LEN * sizeof (kiss_fft_cpx));
 
   return TRUE;
 }
@@ -301,13 +303,15 @@ gst_pitch_message_new (GstPitch * filter)
 {
   GstStructure *s;
   gint i, min_i, max_i;
-  gint frequency, frequency_module;
+  gint freq_index, frequency_module;
+  gfloat frequency;
 
   /* Extract fundamental frequency */
-  frequency = 0;
+  freq_index = 0;
   frequency_module = 0;
-  min_i = filter->minfreq;
-  max_i = filter->maxfreq;
+  frequency = 0.0;
+  min_i = filter->minfreq * ZERO_PADDING_FACTOR;
+  max_i = filter->maxfreq * ZERO_PADDING_FACTOR;
 
   GST_DEBUG_OBJECT (filter, "min_freq = %d, max_freq = %d", filter->minfreq,
       filter->maxfreq);
@@ -330,7 +334,7 @@ gst_pitch_message_new (GstPitch * filter)
           /* find strongest peak */
           if (module > frequency_module) {
             frequency_module = module;
-            frequency = i;
+            freq_index = i;
           }
         }
       }
@@ -341,7 +345,7 @@ gst_pitch_message_new (GstPitch * filter)
         gint prev_frequency = 0;
         gint j, t;
 
-        for (i = min_i; i < RATE; i++) {
+        for (i = min_i; i < FFT_LEN; i++) {
           filter->module[i] = (filter->spectrum[i].r * filter->spectrum[i].r);
           filter->module[i] += (filter->spectrum[i].i * filter->spectrum[i].i);
 
@@ -351,10 +355,10 @@ gst_pitch_message_new (GstPitch * filter)
         }
         /* Harmonic Product Spectrum algorithm */
 #define MAX_DS_FACTOR (6)
-        for (i = min_i; (i <= max_i) && (i < RATE); i++) {
+        for (i = min_i; (i <= max_i) && (i < FFT_LEN); i++) {
           for (j = 2; j <= MAX_DS_FACTOR; j++) {
-            t = i * j;
-            if (t > RATE)
+            t = i * j * ZERO_PADDING_FACTOR;
+            if (t > FFT_LEN)
               break;
 
             /* this is not part of the HPS but it seems
@@ -366,14 +370,15 @@ gst_pitch_message_new (GstPitch * filter)
 
           /* find strongest peak */
           if (filter->module[i] > frequency_module) {
-            prev_frequency = frequency;
+            prev_frequency = freq_index;
             frequency_module = filter->module[i];
-            frequency = i;
+            freq_index = i;
           }
         }
 
         /* try to correct octave error */
-        if (frequency != 0 && prev_frequency != 0) {
+#if 0
+        if (freq_index != 0 && prev_frequency != 0) {
           float ratio = (float) frequency / (float) prev_frequency;
           if (ratio >= 1.9 && ratio < 2.1 && (float) filter->module[prev_frequency] >= 0.2 * (float) frequency_module ) {
             g_debug("Chose freq %d[%d] over %d[%d]\n", prev_frequency, filter->module[prev_frequency], frequency, filter->module[frequency]);
@@ -381,6 +386,7 @@ gst_pitch_message_new (GstPitch * filter)
             frequency_module = filter->module[prev_frequency];
           } 
         }
+#endif
       }
       break;
     default:
@@ -388,12 +394,13 @@ gst_pitch_message_new (GstPitch * filter)
   }
   g_mutex_unlock (filter->mutex);
 
+  frequency = (gfloat) freq_index / ZERO_PADDING_FACTOR;
   /*
   g_debug("freq %d[%d]\n", frequency, frequency_module);
   */
   GST_DEBUG_OBJECT (filter, "preparing message, frequency = %d ", frequency);
 
-  s = gst_structure_new ("pitch", "frequency", G_TYPE_INT, frequency, NULL);
+  s = gst_structure_new ("pitch", "frequency", G_TYPE_FLOAT, frequency, NULL);
 
   return gst_message_new_element (GST_OBJECT (filter), s);
 }

@@ -325,7 +325,7 @@ draw_leds (AppData * appdata, gint n)
 
 /* update frequency info */
 static void
-update_frequency (AppData * appdata, gint frequency)
+update_frequency (AppData * appdata, gfloat frequency)
 {
   gchar *buffer;
   gint i, j;
@@ -348,7 +348,7 @@ update_frequency (AppData * appdata, gint frequency)
   gtk_label_set_text (GTK_LABEL (appdata->targetFrequency), buffer);
   g_free (buffer);
 
-  buffer = g_strdup_printf ("Played frequency is %d Hz", frequency);
+  buffer = g_strdup_printf ("Played frequency is %.2f Hz", frequency);
   gtk_label_set_text (GTK_LABEL (appdata->currentFrequency), buffer);
   g_free (buffer);
 
@@ -364,9 +364,9 @@ message_handler (GstBus * bus, GstMessage * message, gpointer data)
     const gchar *name = gst_structure_get_name (s);
 
     if (strcmp (name, "pitch") == 0) {
-      gint frequency;
+      gfloat frequency;
 
-      frequency = g_value_get_int (gst_structure_get_value (s, "frequency"));
+      frequency = g_value_get_float (gst_structure_get_value (s, "frequency"));
       if (frequency != 0)
         update_frequency (data, frequency);
     }
@@ -490,7 +490,7 @@ fake_frequency (gpointer user_data)
 {
   AppData * appdata = (AppData *) user_data;
 
-  update_frequency (appdata, 440);
+  update_frequency (appdata, 440.0);
 
   return TRUE;
 }
