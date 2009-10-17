@@ -8,7 +8,8 @@ Standards-Version: 3.6.0
 Package: tuner
 Architecture: any
 Depends: ${shlibs:Depends}
-Description: Tuner is a helper tool for tuning musical instruments.
+Description: A tool for tuning musical instruments.
+XB-Maemo-Display-Name: Tuner
 XB-Maemo-Icon-26:
  iVBORw0KGgoAAAANSUhEUgAAABoAAAAaCAMAAACelLz8AAAAAXNSR0IArs4c
  6QAAAEhQTFRFiuI0c9IWTpoG/K8+9XkAzlwAcp/PNGWkIEqHrX+odVB7XDVm
