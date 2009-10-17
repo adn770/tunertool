@@ -19,7 +19,7 @@ ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
 else
 	CFLAGS += -O2
 	ifneq (,$(findstring $(DEB_HOST_ARCH),arm armel))
-		CFLAGS += -mcpu=arm926ej-s 
+		CFLAGS += -march=armv7-a -mtune=cortex-a8 -mfpu=neon -ftree-vectorize -mfloat-abi=softfp
 	endif
 endif
 ifeq (,$(findstring nostrip,$(DEB_BUILD_OPTIONS)))
