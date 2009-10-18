@@ -65,6 +65,8 @@
 #define between(x,a,b) (((x)>=(a)) && ((x)<=(b)))
 
 #define MAGIC (1.059463094359f) /* 2^(1/2) */
+#define CENT (1.0005777895f) /* 1/100th of a half-tone */
+#define LOG_CENT (0.00057762265046662109f) /* ln (CENT) */
 
 extern gboolean plugin_pitch_init (GstPlugin * plugin);
 extern gboolean plugin_tonesrc_init (GstPlugin * plugin);
@@ -105,7 +107,7 @@ enum
 
 
 
-#define NUM_LEDS (66)
+#define NUM_LEDS (50)
 #define NUM_WKEYS (15) /* # of white keys in the piano keyboard */
 #define WKEY_WIDTH (45)
 
@@ -326,6 +328,14 @@ draw_leds (AppData * appdata, gint n)
   }
 }
 
+/* translate the interval (ratio of two freqs) into cents */
+gfloat
+interval2cent (gfloat freq, gfloat note)
+{
+  //return (gfloat) (log (freq / note) / log (CENT));
+  return (gfloat) (log (freq / note) / LOG_CENT);
+}
+
 /* update frequency info */
 static void
 update_frequency (AppData * appdata, gint frequency)
@@ -355,7 +365,9 @@ update_frequency (AppData * appdata, gint frequency)
   gtk_label_set_text (GTK_LABEL (appdata->currentFrequency), buffer);
   g_free (buffer);
 
-  draw_leds (appdata, (gint) roundf (min_diff));
+  /* make leds display the difference in steps of two cents */
+  diff = interval2cent ((gfloat) frequency, equal_tempered_scale[j].frequency);
+  draw_leds (appdata, (gint) roundf (diff / 2.0));
 }
 
 /* receive spectral data from element message */
