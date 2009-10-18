@@ -1,0 +1,11 @@
+TODO for tuner:
+
+ * rework algorithm setup and padding
+ * make max/min freq configurable
+ * level triggering for on/off
+ * display difference (leds) in not so fine granularity
+ * see if real-only FFT is considerably faster
+ * make sampling freq configurable
+ * make nfft configurable
+
+ * rename the app to Desafinado, Atunality or something
