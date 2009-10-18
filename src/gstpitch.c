@@ -38,9 +38,8 @@ enum
 {
   PROP_0,
   PROP_SIGNAL_FFREQ,
-  PROP_SIGNAL_INTERVAL,
-  PROP_SIGNAL_MINFREQ,
-  PROP_SIGNAL_MAXFREQ,
+  PROP_MINFREQ,
+  PROP_MAXFREQ,
   PROP_NFFT,
   PROP_ALGORITHM
 };
@@ -146,12 +145,12 @@ gst_pitch_class_init (GstPitchClass * klass)
           "Post a fundamental frequency message for each passed interval",
           TRUE, G_PARAM_READWRITE));
 
-  g_object_class_install_property (gobject_class, PROP_SIGNAL_MINFREQ,
+  g_object_class_install_property (gobject_class, PROP_MINFREQ,
       g_param_spec_int ("minfreq", "MinFreq",
           "Initial scan frequency, default 30 Hz",
           1, G_MAXINT, 30, G_PARAM_READWRITE));
 
-  g_object_class_install_property (gobject_class, PROP_SIGNAL_MAXFREQ,
+  g_object_class_install_property (gobject_class, PROP_MAXFREQ,
       g_param_spec_int ("maxfreq", "MaxFreq",
           "Final scan frequency, default 1500 Hz",
           1, G_MAXINT, 1500, G_PARAM_READWRITE));
@@ -225,10 +224,10 @@ gst_pitch_set_property (GObject * object, guint prop_id,
     case PROP_SIGNAL_FFREQ:
       filter->message = g_value_get_boolean (value);
       break;
-    case PROP_SIGNAL_MINFREQ:
+    case PROP_MINFREQ:
       filter->minfreq = g_value_get_int (value);
       break;
-    case PROP_SIGNAL_MAXFREQ:
+    case PROP_MAXFREQ:
       filter->maxfreq = g_value_get_int (value);
       break;
     case PROP_ALGORITHM:
@@ -251,10 +250,10 @@ gst_pitch_get_property (GObject * object, guint prop_id,
     case PROP_SIGNAL_FFREQ:
       g_value_set_boolean (value, filter->message);
       break;
-    case PROP_SIGNAL_MINFREQ:
+    case PROP_MINFREQ:
       g_value_set_int (value, filter->minfreq);
       break;
-    case PROP_SIGNAL_MAXFREQ:
+    case PROP_MAXFREQ:
       g_value_set_int (value, filter->maxfreq);
       break;
     case PROP_ALGORITHM:
