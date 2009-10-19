@@ -72,6 +72,7 @@ struct _GstPitch
   kiss_fft_cpx *spectrum;
 
   gint * module;
+  GMutex *mutex;
 };
 
 struct _GstPitchClass
@@ -79,7 +80,7 @@ struct _GstPitchClass
   GstBaseTransformClass parent_class;
 };
 
-GType gst_pithc_get_type (void);
+GType gst_pitch_get_type (void);
 
 G_END_DECLS
 #endif /* __GST_PITCH_H__ */

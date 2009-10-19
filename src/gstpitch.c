@@ -167,9 +167,10 @@ gst_pitch_class_init (GstPitchClass * klass)
 }
 
 static void
-gst_pitch_setup_algorithm (GstPitch * filter)
+gst_pitch_setup_algorithm (GstPitch * filter, GstPitchAlgorithm algorithm)
 {
-  if (filter->algorithm == GST_PITCH_ALGORITHM_HPS) {
+  g_mutex_lock (filter->mutex);
+  if (algorithm == GST_PITCH_ALGORITHM_HPS) {
     if (NULL == filter->module)
       filter->module = (gint *) g_malloc (RATE * sizeof (gint));
   }
@@ -179,6 +180,8 @@ gst_pitch_setup_algorithm (GstPitch * filter)
 
     filter->module = NULL;
   }
+  filter->algorithm = algorithm;
+  g_mutex_unlock (filter->mutex);
 }
 
 static void
@@ -189,8 +192,9 @@ gst_pitch_init (GstPitch * filter, GstPitchClass * klass)
   filter->minfreq = 30;
   filter->maxfreq = 1500;
   filter->message = TRUE;
-  filter->algorithm = DEFAULT_PROP_ALGORITHM;
-  gst_pitch_setup_algorithm (filter);
+  filter->mutex = g_mutex_new ();
+    
+  gst_pitch_setup_algorithm (filter, DEFAULT_PROP_ALGORITHM);
 }
 
 static void
@@ -208,6 +212,8 @@ gst_pitch_dispose (GObject * object)
   g_free (filter->spectrum);
   if (filter->module)
     g_free (filter->module);
+
+  g_mutex_free (filter->mutex);
 
   kiss_fft_cleanup ();
 
@@ -231,8 +237,7 @@ gst_pitch_set_property (GObject * object, guint prop_id,
       filter->maxfreq = g_value_get_int (value);
       break;
     case PROP_ALGORITHM:
-      filter->algorithm = g_value_get_enum (value);
-      gst_pitch_setup_algorithm (filter);
+      gst_pitch_setup_algorithm (filter, g_value_get_enum (value));
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -306,6 +311,7 @@ gst_pitch_message_new (GstPitch * filter)
       filter->maxfreq);
   /*GST_DEBUG_OBJECT (filter, "min_i = %d, max_i = %d", min_i, max_i); */
 
+  g_mutex_lock (filter->mutex);
   switch (filter->algorithm) {
 
     case GST_PITCH_ALGORITHM_FFT:
@@ -378,6 +384,7 @@ gst_pitch_message_new (GstPitch * filter)
     default:
       break;
   }
+  g_mutex_unlock (filter->mutex);
 
   /*
   g_debug("freq %d[%d]\n", frequency, frequency_module);
