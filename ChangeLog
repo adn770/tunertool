@@ -1,3 +1,8 @@
+2009-10-20  Jari Tenhunen  <jari.tenhunen@iki.fi>
+
+	* src/tuner.c: make leds display difference in cents
+	* src/gstpitch.c: fix potential crash when changing algorithm
+
 2008-08-30  Jari Tenhunen  <jari.tenhunen@iki.fi>
 
 	* debian/control: New icon also for debian

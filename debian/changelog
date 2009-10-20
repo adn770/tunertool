@@ -1,3 +1,10 @@
+tuner (0.1.1) diablo; urgency=low
+
+  * make leds display difference in cents
+  * fix potential crash when changing algorithm
+
+ -- Jari Tenhunen <jari.tenhunen@iki.fi>  Sun, 18 Oct 2009 18:23:38 +0300
+
 tuner (0.1.0) unstable; urgency=low
 
   * added new icons.
