@@ -26,20 +26,17 @@ ifeq (,$(findstring nostrip,$(DEB_BUILD_OPTIONS)))
 	INSTALL_PROGRAM += -s
 endif
 
-config.status: configure
+config.status:
 	dh_testdir
+	./autogen.sh
 	# Add here commands to configure the package.
 	CFLAGS="$(CFLAGS)" ./configure --host=$(DEB_HOST_GNU_TYPE) \
      --build=$(DEB_BUILD_GNU_TYPE) --prefix=/usr --mandir=\$${prefix}/share/man \
      --infodir=\$${prefix}/share/info --with-maemo
 
-configure:
-	./autogen.sh
-
-
 build: build-stamp
 
-build-stamp:  config.status
+build-stamp: config.status
 	dh_testdir
 
 	# Add here commands to compile the package.
@@ -96,4 +93,4 @@ binary-arch: build install
 	dh_builddeb
 
 binary: binary-indep binary-arch
-.PHONY: build clean binary-indep binary-arch binary install configure
+.PHONY: build clean binary-indep binary-arch binary install
