@@ -186,7 +186,7 @@ settings_dialog_show (GtkWindow * parent)
   hildon_touch_selector_append_text (selector, "Simple FFT");
   hildon_touch_selector_append_text (selector, "Harmonic Product Spectrum");
   hildon_picker_button_set_active (picker, settings_get_algorithm (DEFAULT_ALGORITHM));
-  
+  gtk_button_set_alignment (GTK_BUTTON (picker), 0.0, 0.5);
   gtk_box_pack_start (GTK_BOX (vbox), GTK_WIDGET (picker), FALSE, FALSE, 0);
 #if 0
   editor = calibration_editor_new (CALIB_MIN, CALIB_MAX);
