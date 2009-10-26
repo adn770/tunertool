@@ -9,6 +9,7 @@ Package: tuner
 Architecture: any
 Depends: ${shlibs:Depends}
 Description: A tool for tuning musical instruments.
+XSBC-Bugtracker: https://garage.maemo.org/tracker/?atid=2660&group_id=710&func=browse
 XB-Maemo-Display-Name: Tuner
 XB-Maemo-Icon-26:
  iVBORw0KGgoAAAANSUhEUgAAABoAAAAaCAMAAACelLz8AAAAAXNSR0IArs4c
