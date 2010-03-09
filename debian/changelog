@@ -1,3 +1,13 @@
+tuner (0.1.2) UNRELEASED; urgency=low
+
+  * Fix a potential crash when changing the algorithm
+  * Changed frequency reporting from fixed point to floating point
+  * Added support for zero padding
+  * Fix packaging (displayname, bugtracker, description, optify)
+  * Updated compile flags for Fremantle
+
+ -- Jari Tenhunen <jari.tenhunen@iki.fi>  Tue, 16 Mar 2010 23:00:44 +0200
+
 tuner (0.1.1) unstable; urgency=low
 
   * Changes for fremantle
