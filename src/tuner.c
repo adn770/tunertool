@@ -1,6 +1,7 @@
 /* vim: set sts=2 sw=2 et: */
 /* Tuner
  * Copyright (C) 2006 Josep Torra <j.torra@telefonica.net>
+ *               2008-2009 Jari Tenhunen <jari.tenhunen@iki.fi>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -485,6 +486,7 @@ stop_pipelines (gpointer user_data)
   return FALSE;
 }
 
+#ifdef FAKE_FREQUENCY
 static gboolean
 fake_frequency (gpointer user_data)
 {
@@ -494,6 +496,7 @@ fake_frequency (gpointer user_data)
 
   return TRUE;
 }
+#endif
 
 #ifdef MAEMO
 static void
@@ -888,7 +891,9 @@ main (int argc, char *argv[])
 
   set_pipeline_states (appdata, GST_STATE_PLAYING);
 
-  //g_timeout_add (2000, (GSourceFunc) fake_frequency, appdata);
+#ifdef FAKE_FREQUENCY
+  g_timeout_add (2000, (GSourceFunc) fake_frequency, appdata);
+#endif
 
   gtk_main ();
 
