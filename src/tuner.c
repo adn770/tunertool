@@ -884,6 +884,8 @@ main (int argc, char *argv[])
   if (appdata->display_keepalive)
     display_keepalive (appdata);
 
+  draw_leds (appdata, 0);
+
   set_pipeline_states (appdata, GST_STATE_PLAYING);
 
   //g_timeout_add (2000, (GSourceFunc) fake_frequency, appdata);
