@@ -739,7 +739,7 @@ main (int argc, char *argv[])
   gtk_init (&argc, &argv);
 
   app = HILDON_PROGRAM (hildon_program_get_instance ());
-  g_set_application_name ("Tuner Tool");
+  g_set_application_name ("Tuner");
 
   appdata->app = app;
 
