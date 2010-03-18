@@ -25,6 +25,9 @@ endif
 ifeq (,$(findstring nostrip,$(DEB_BUILD_OPTIONS)))
 	INSTALL_PROGRAM += -s
 endif
+ifeq (,$(findstring debug,$(DEB_BUILD_OPTIONS)))
+	CFLAGS += -DG_DISABLE_CAST_CHECKS
+endif
 
 config.status:
 	dh_testdir
