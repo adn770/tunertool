@@ -93,9 +93,9 @@ settings_get_algorithm (gint default_value)
 }
 
 gboolean
-settings_set_algorithm (gint val)
+settings_set_algorithm (gint value)
 {
-  return gconf_client_set_int (get_client (), GCONF_KEY_ALGORITHM, val, NULL);
+  return gconf_client_set_int (get_client (), GCONF_KEY_ALGORITHM, value, NULL);
 }
 
 gint

@@ -41,8 +41,11 @@ enum
 
 gint settings_get_algorithm (gint default_value);
 gint settings_get_calibration (gint default_value);
-gboolean settings_set_calibration (gint value);
 gboolean settings_get_display_keepalive (gboolean default_value);
+
+gboolean settings_set_algorithm (gint value);
+gboolean settings_set_calibration (gint value);
+gboolean settings_set_display_keepalive (gboolean val);
 gboolean settings_init (GConfClientNotifyFunc func, gpointer user_data);
 #if HILDON == 1
 void settings_dialog_show (GtkWindow * parent);
