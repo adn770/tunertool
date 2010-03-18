@@ -2,6 +2,7 @@
 /*
  * GStreamer
  * Copyright (C) 2006 Josep Torra <j.torra@telefonica.net>
+ *               2008-2010 Jari Tenhunen <jari.tenhunen@iki.fi>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -397,7 +398,7 @@ gst_pitch_message_new (GstPitch * filter)
   /*
   g_debug("freq %d[%d]\n", frequency, frequency_module);
   */
-  GST_DEBUG_OBJECT (filter, "preparing message, frequency = %d ", frequency);
+  GST_DEBUG_OBJECT (filter, "preparing message, frequency = %.2f", frequency);
 
   s = gst_structure_new ("pitch", "frequency", G_TYPE_FLOAT, frequency, NULL);
 
