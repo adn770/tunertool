@@ -28,6 +28,7 @@
 #include <hildon/hildon-defines.h>
 #include <hildon/hildon-program.h>
 #include <hildon/hildon-number-editor.h>
+#include <hildon/hildon-gtk.h>
 
 #include <libosso.h>
 
