@@ -662,7 +662,7 @@ about_activate (GtkWidget * widget, GtkWindow * main_win)
   GtkWidget *label;
   GtkWidget *dialog;
  
-  dialog = gtk_dialog_new_with_buttons("About tuner", main_win,
+  dialog = gtk_dialog_new_with_buttons("About Tuner", main_win,
       GTK_DIALOG_MODAL | 
       GTK_DIALOG_DESTROY_WITH_PARENT |
       GTK_DIALOG_NO_SEPARATOR,
@@ -673,7 +673,8 @@ about_activate (GtkWidget * widget, GtkWindow * main_win)
   vbox = gtk_vbox_new (FALSE, HILDON_MARGIN_DEFAULT);
   gtk_container_set_border_width (GTK_CONTAINER (vbox), HILDON_MARGIN_DEFAULT);
   gtk_container_add (GTK_CONTAINER (GTK_DIALOG (dialog)->vbox), vbox);
-  label = gtk_label_new ("Tuner Tool is developed by Josep Torra and Jari Tenhunen.\n"
+  label = gtk_label_new ("Version " VERSION 
+      "\nTuner Tool is developed by Josep Torra and Jari Tenhunen.\n"
       "http://n770galaxy.blogspot.com/\n");
   gtk_box_pack_start (GTK_BOX (vbox), label, FALSE, FALSE, 5);
 
