@@ -24,8 +24,6 @@
 #include "config.h"
 #endif
 
-#define TUNER_VERSION "0.4"
-
 #ifdef HILDON
 #include <hildon/hildon-defines.h>
 #include <hildon/hildon-program.h>
@@ -34,7 +32,7 @@
 #include <libosso.h>
 
 #define OSSO_PACKAGE "tuner-tool"
-#define OSSO_VERSION TUNER_VERSION
+#define OSSO_VERSION VERSION
 
 #endif /* ifdef HILDON */
 

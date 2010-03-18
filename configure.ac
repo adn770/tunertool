@@ -10,9 +10,8 @@ dnl the fourth (nano) number should be 0 for a release, 1 for CVS,
 dnl and 2... for a prerelease
 
 dnl when going to/from release please set the nano correctly !
-dnl releases only do Wall, cvs and prerelease does Werror too
-AS_VERSION(tuner, GST_PLUGIN_VERSION, 0, 0, 4, 0,
-    GST_PLUGIN_CVS="no", GST_PLUGIN_CVS="yes")
+AS_VERSION(tuner, TUNER_VERSION, 0, 1, 2, 0,
+    RELEASE="yes", RELEASE="no")
 
 dnl AM_MAINTAINER_MODE provides the option to enable maintainer mode
 AM_MAINTAINER_MODE
