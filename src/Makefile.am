@@ -23,7 +23,7 @@ libgsttonesrc_la_LIBADD = $(GSTPB_BASE_LIBS) $(GST_BASE_LIBS) \
 libgsttonesrc_la_LDFLAGS = $(GST_PLUGIN_LDFLAGS)
 
 # headers we need but don't want installed
-noinst_HEADERS = gstpitch.h gsttonesrc.h kiss_fft.h _kiss_fft_guts.h settings.h
+noinst_HEADERS = gstpitch.h gsttonesrc.h kiss_fft.h _kiss_fft_guts.h settings.h temperament.h
 EXTRA_DIST = tuner26.png  tuner40.png  tuner64.png
 
 if HAVE_GTK
@@ -38,7 +38,7 @@ endif
 #demo_tuner_CFLAGS  = $(GST_CFLAGS) $(GTK_CFLAGS) 
 #demo_tuner_LDFLAGS = $(GST_LIBS) $(GTK_LIBS)
 
-tuner_SOURCES = tuner.c settings.c
+tuner_SOURCES = tuner.c settings.c temperament.c
 tuner_DEPENDENCIES = $(top_builddir)/src/libgstpitch.la $(top_builddir)/src/libgsttonesrc.la
 tuner_CFLAGS  = $(GST_CFLAGS) $(GTK_CFLAGS) $(MAEMO_CFLAGS) $(GCONF_CFLAGS) -D_GNU_SOURCE
 tuner_LDADD = $(GST_LIBS) $(GTK_LIBS) $(MAEMO_LIBS) $(GCONF_LIBS) $(top_builddir)/src/libgstpitch.la $(top_builddir)/src/libgsttonesrc.la
