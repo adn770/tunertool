@@ -10,7 +10,7 @@ dnl the fourth (nano) number should be 0 for a release, 1 for CVS,
 dnl and 2... for a prerelease
 
 dnl when going to/from release please set the nano correctly !
-AS_VERSION(tuner, TUNER_VERSION, 0, 1, 2, 0,
+AS_VERSION(tuner, TUNER_VERSION, 0, 1, 3, 0,
     RELEASE="yes", RELEASE="no")
 
 dnl AM_MAINTAINER_MODE provides the option to enable maintainer mode
